@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssh-docs"
+version = "0.1.0"
+description = "Expose documentation via SSH - browse docs using familiar Unix commands"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "SSH-Docs Contributors"}
+]
+keywords = ["ssh", "documentation", "docs", "server", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: System :: Shells",
+]
+
+dependencies = [
+    "asyncssh>=2.13.0",
+    "click>=8.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+ssh-docs = "ssh_docs.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/ssh-docs/ssh-docs"
+Documentation = "https://github.com/ssh-docs/ssh-docs#readme"
+Repository = "https://github.com/ssh-docs/ssh-docs"
+Issues = "https://github.com/ssh-docs/ssh-docs/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ssh_docs*"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

@@ -1,0 +1,12 @@
+# SSH-Docs Requirements
+# Install with: pip install -r requirements.txt
+
+asyncssh>=2.13.0
+click>=8.0.0
+pyyaml>=6.0
+
+# Optional development dependencies
+# pytest>=7.0.0
+# pytest-asyncio>=0.21.0
+# black>=23.0.0
+# mypy>=1.0.0

@@ -1,0 +1,2 @@
+[console_scripts]
+ssh-docs = ssh_docs.cli:main
