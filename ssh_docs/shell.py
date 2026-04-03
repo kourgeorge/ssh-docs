@@ -16,14 +16,14 @@ class SSHDocsShell:
 
     def __init__(
         self,
-        stdin: Any,
+        input_queue: Any,
         stdout: Any,
         stderr: Any,
         content_root: Path,
         site_name: str,
         banner: Optional[str] = None,
     ) -> None:
-        self.stdin = stdin
+        self.input_queue = input_queue
         self.stdout = stdout
         self.stderr = stderr
         self.content_root = content_root.resolve()
@@ -153,9 +153,9 @@ Readonly session
                 # Read input character by character to handle tab completion
                 current_line = ""
                 while True:
-                    char = await self.stdin.read(1)
+                    char = await self.input_queue.get()
                     
-                    if not char:
+                    if char is None:
                         logger.info("Connection closed")
                         return
                     

@@ -177,6 +177,7 @@ class SSHDocsSession(asyncssh.SSHServerSession):
         self._chan = None
         self._term_type = None
         self._term_size = (80, 24, 0, 0)
+        self._input_queue = asyncio.Queue()
     
     def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
         """Called when the session channel is opened."""
@@ -201,13 +202,26 @@ class SSHDocsSession(asyncssh.SSHServerSession):
         self._term_size = (width, height, pixwidth, pixheight)
         logger.debug(f"Terminal size changed: {width}x{height}")
     
+    def data_received(self, data: str, datatype: int) -> None:
+        """Called when data is received from the client."""
+        if datatype is None:  # Regular stdin data
+            # Put each character into the queue for the shell to process
+            for char in data:
+                self._input_queue.put_nowait(char)
+    
+    def eof_received(self) -> bool:
+        """Called when EOF is received from the client."""
+        logger.info("EOF received")
+        self._input_queue.put_nowait(None)  # Signal EOF
+        return True
+    
     def session_started(self) -> None:
         """Called when the session is ready to start."""
         logger.info("Session started, creating shell")
         self._shell = SSHDocsShell(
-            stdin=self._chan,
+            input_queue=self._input_queue,
             stdout=self._chan,
-            stderr=self._chan.stderr,
+            stderr=self._chan,
             content_root=self.server.content_root,
             site_name=self.server.config.site_name,
             banner=self.server.config.banner,
