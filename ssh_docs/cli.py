@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 import click
+from click.shell_completion import CompletionItem
 
 from .config import (
     Config,
@@ -17,6 +18,19 @@ from .config import (
     load_config,
 )
 from .server import run_server
+
+
+
+
+def complete_config_files(ctx, param, incomplete):
+    """Complete .yml and .yaml config files in current directory."""
+    from pathlib import Path
+    configs = list(Path(".").glob("*.yml")) + list(Path(".").glob("*.yaml"))
+    return [
+        CompletionItem(str(c))
+        for c in configs
+        if str(c).startswith(incomplete)
+    ]
 
 
 @click.group()
@@ -50,6 +64,7 @@ def cli() -> None:
     "--config",
     type=click.Path(exists=True),
     default=None,
+    shell_complete=complete_config_files,
     help="Config file path [default: .ssh-docs.yml]",
 )
 @click.option(
@@ -381,6 +396,53 @@ def keygen(output_dir: Optional[str], force: bool) -> None:
     click.echo(f"✓ Public key: {pub_key_path}")
     click.echo(f"\nTo use this key, add to your config:")
     click.echo(f"  host_key: {key_path}")
+
+
+
+
+@cli.command()
+@click.option(
+    "--shell",
+    type=click.Choice(["bash", "zsh", "fish"]),
+    required=True,
+    help="Shell type",
+)
+def completion(shell: str) -> None:
+    """Generate shell completion script.
+    
+    Install tab completion for your shell to autocomplete commands,
+    options, and file paths.
+    
+    Examples:
+    
+      \b
+      # Install for bash
+      ssh-docs completion --shell bash >> ~/.bashrc
+      source ~/.bashrc
+      
+      \b
+      # Install for zsh
+      ssh-docs completion --shell zsh >> ~/.zshrc
+      source ~/.zshrc
+      
+      \b
+      # Install for fish
+      ssh-docs completion --shell fish >> ~/.config/fish/config.fish
+      source ~/.config/fish/config.fish
+    """
+    shell_map = {
+        "bash": "bash_source",
+        "zsh": "zsh_source",
+        "fish": "fish_source",
+    }
+    
+    prog_name = "ssh-docs"
+    complete_var = f"_{prog_name.upper().replace('-', '_')}_COMPLETE"
+    
+    if shell == "fish":
+        click.echo(f"eval (env {complete_var}={shell_map[shell]} {prog_name})")
+    else:
+        click.echo(f'eval "$({complete_var}={shell_map[shell]} {prog_name})"')
 
 
 def main() -> None:

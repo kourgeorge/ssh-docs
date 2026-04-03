@@ -8,6 +8,8 @@ import shlex
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+import asyncssh
+
 
 class SSHDocsShell:
     """Interactive shell session that provides Unix-like commands for browsing documentation."""
@@ -28,6 +30,99 @@ class SSHDocsShell:
         self.site_name = site_name
         self.cwd = "/site"
         self.banner = banner or self._default_banner()
+        self.commands = ["help", "pwd", "ls", "cd", "cat", "head", "tail", "find", "grep", "exit", "quit"]
+
+    def _get_completions(self, text: str, state: int) -> Optional[str]:
+        """Generate completions for tab completion."""
+        # Parse the current line to understand context
+        line_before_cursor = text
+        parts = line_before_cursor.split()
+        
+        # If empty or just whitespace, suggest commands
+        if not parts or (len(parts) == 1 and not line_before_cursor.endswith(' ')):
+            prefix = parts[0] if parts else ""
+            matches = [cmd for cmd in self.commands if cmd.startswith(prefix)]
+            return matches[state] if state < len(matches) else None
+        
+        # If we have a command, complete paths/files
+        command = parts[0]
+        if command in self.commands:
+            # Get the last argument being typed
+            if line_before_cursor.endswith(' '):
+                prefix = ""
+            else:
+                prefix = parts[-1] if len(parts) > 1 else ""
+            
+            # Complete file/directory paths
+            matches = self._complete_path(prefix)
+            return matches[state] if state < len(matches) else None
+        
+        return None
+    
+    def _complete_path(self, prefix: str) -> list[str]:
+        """Complete file and directory paths."""
+        # Determine the directory to search and the prefix to match
+        if prefix.startswith('/'):
+            # Absolute path - extract directory and filename parts
+            if prefix.endswith('/'):
+                # Path ends with /, list contents of that directory
+                dir_part = prefix.rstrip('/')
+                file_part = ''
+            elif '/' in prefix.rstrip('/')[1:]:  # Has more than just /
+                dir_part = prefix.rsplit('/', 1)[0] or '/'
+                file_part = prefix.rsplit('/', 1)[1]
+            else:
+                dir_part = '/site'
+                file_part = prefix[1:] if len(prefix) > 1 else ''
+            virtual_path = dir_part
+        else:
+            # Relative path
+            if '/' in prefix:
+                dir_part = prefix.rsplit('/', 1)[0]
+                file_part = prefix.rsplit('/', 1)[1]
+                virtual_path = self._resolve_virtual_path(dir_part)
+            else:
+                # Just a filename in current directory
+                dir_part = ''
+                file_part = prefix
+                virtual_path = self.cwd
+        
+        real_path = self._to_real_path(virtual_path)
+        if not real_path or not real_path.exists() or not real_path.is_dir():
+            return []
+        
+        # Get matching entries
+        try:
+            entries = []
+            for child in sorted(real_path.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+                name = child.name
+                
+                # Skip if doesn't match prefix
+                if not name.startswith(file_part):
+                    continue
+                
+                # Build the completion string
+                if prefix.startswith('/'):
+                    # Absolute path - return full virtual path
+                    full_name = self._to_virtual_path(child)
+                elif dir_part:
+                    # Relative path with directory component
+                    full_name = f"{dir_part}/{name}"
+                else:
+                    # Just filename
+                    full_name = name
+                
+                # Add trailing slash for directories
+                if child.is_dir():
+                    full_name += "/"
+                
+                entries.append(full_name)
+            
+            return entries
+        except (PermissionError, OSError):
+            return []
+
+
 
     def _default_banner(self) -> str:
         return f"""Connected to {self.site_name}.ssh-docs
@@ -39,17 +134,90 @@ Readonly session
 """
 
     async def run(self) -> None:
-        """Main command loop."""
+        """Main command loop with tab completion support."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info("Shell run() started")
         self.stdout.write(self.banner)
+        logger.info("Banner written")
 
+        # Buffer for current line being edited
+        current_line = ""
+        
         while True:
             try:
-                self.stdout.write(f"{self.cwd}$ ")
-                line = await self.stdin.readline()
-                if not line:
-                    break
-
-                raw = line.strip()
+                prompt = f"{self.cwd}$ "
+                self.stdout.write(prompt)
+                
+                # Read input character by character to handle tab completion
+                current_line = ""
+                while True:
+                    char = await self.stdin.read(1)
+                    
+                    if not char:
+                        logger.info("Connection closed")
+                        return
+                    
+                    # Handle tab completion
+                    if char == '\t':
+                        completions = self._complete_path(current_line.split()[-1] if current_line.split() else "")
+                        
+                        if len(completions) == 1:
+                            # Single match - complete it
+                            parts = current_line.split()
+                            if parts:
+                                # Replace last part with completion
+                                parts[-1] = completions[0]
+                                current_line = ' '.join(parts)
+                            else:
+                                current_line = completions[0]
+                            
+                            # Clear line and rewrite
+                            self.stdout.write('\r' + ' ' * (len(prompt) + len(current_line) + 10) + '\r')
+                            self.stdout.write(prompt + current_line)
+                            
+                        elif len(completions) > 1:
+                            # Multiple matches - show them
+                            self.stdout.write('\n')
+                            for comp in completions:
+                                self.stdout.write(f"{comp}  ")
+                            self.stdout.write('\n')
+                            self.stdout.write(prompt + current_line)
+                        
+                        continue
+                    
+                    # Handle backspace
+                    elif char in ('\x7f', '\x08'):
+                        if current_line:
+                            current_line = current_line[:-1]
+                            self.stdout.write('\b \b')
+                        continue
+                    
+                    # Handle newline
+                    elif char in ('\n', '\r'):
+                        self.stdout.write('\n')
+                        break
+                    
+                    # Handle Ctrl+C
+                    elif char == '\x03':
+                        self.stdout.write('^C\n')
+                        current_line = ""
+                        break
+                    
+                    # Handle Ctrl+D
+                    elif char == '\x04':
+                        if not current_line:
+                            self.stdout.write('\nSession closed\n')
+                            return
+                        continue
+                    
+                    # Regular character
+                    else:
+                        current_line += char
+                        self.stdout.write(char)
+                
+                raw = current_line.strip()
                 if not raw:
                     continue
 

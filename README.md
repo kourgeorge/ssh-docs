@@ -255,6 +255,63 @@ ssh-docs keygen
 ssh-docs keygen --output-dir ./keys
 ```
 
+## Shell Completion
+
+SSH-Docs supports tab completion for commands, options, and file paths in Bash, Zsh, and Fish shells.
+
+### Installation
+
+**Bash:**
+```bash
+# Add to ~/.bashrc
+ssh-docs completion --shell bash >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Zsh:**
+```zsh
+# Add to ~/.zshrc
+ssh-docs completion --shell zsh >> ~/.zshrc
+source ~/.zshrc
+```
+
+**Fish:**
+```fish
+# Add to ~/.config/fish/config.fish
+ssh-docs completion --shell fish >> ~/.config/fish/config.fish
+source ~/.config/fish/config.fish
+```
+
+### What Gets Completed
+
+Once enabled, tab completion works for:
+
+- **Commands**: `serve`, `init`, `validate`, `keygen`, `completion`
+- **Options**: `--port`, `--config`, `--auth`, etc.
+- **Values**: Authentication types (`public`, `key`, `password`)
+- **File Paths**: Config files, directories, and other paths
+- **Config Files**: Automatically suggests `.yml` and `.yaml` files
+
+### Usage Examples
+
+```bash
+# Press TAB to complete commands
+ssh-docs <TAB>
+# Shows: serve  init  validate  keygen  completion
+
+# Press TAB to complete options
+ssh-docs serve --<TAB>
+# Shows: --port  --config  --auth  --host  ...
+
+# Press TAB to complete auth types
+ssh-docs serve --auth <TAB>
+# Shows: public  key  password
+
+# Press TAB to complete config files
+ssh-docs serve --config <TAB>
+# Shows: .ssh-docs.yml  custom-config.yml  ...
+```
+
 ## Use Cases
 
 ### Local Development

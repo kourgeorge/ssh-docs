@@ -38,9 +38,7 @@ class SSHDocsServer:
         # Configure server options
         server_options = {
             "server_host_keys": [host_key],
-            "process_factory": self._create_process,
-            "session_factory": None,  # We handle sessions via process_factory
-            "encoding": None,  # Handle encoding in shell
+            "encoding": "utf-8",  # Use UTF-8 encoding for text
         }
         
         # Add authentication if configured
@@ -51,9 +49,9 @@ class SSHDocsServer:
             server_options["authorized_client_keys"] = self.config.authorized_keys
         
         else:
-            # Public access - accept any connection
-            server_options["password_auth"] = False
-            server_options["public_key_auth"] = False
+            # Public access - accept any connection without authentication
+            # We enable password auth but accept any password
+            server_options["password_auth"] = True
         
         logger.info(f"Starting SSH server on {self.config.host}:{self.config.port}")
         logger.info(f"Content root: {self.content_root}")
@@ -81,9 +79,7 @@ class SSHDocsServer:
             await self.server.wait_closed()
             logger.info("SSH server stopped")
 
-    def _create_process(self) -> SSHDocsProcess:
-        """Factory method to create a new process for each connection."""
-        return SSHDocsProcess(self)
+
 
     async def _get_host_key(self) -> str:
         """Get or generate SSH host key."""
@@ -131,18 +127,34 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
         """Begin authentication for a user."""
         logger.debug(f"Authentication attempt for user: {username}")
         
-        # For public access, accept any username
+        # For public access, skip authentication entirely
         if self.server.config.auth_type == "public":
-            return True
+            # Returning False skips authentication
+            return False
         
         return True
 
     def password_auth_supported(self) -> bool:
         """Check if password authentication is supported."""
+        # Only support password auth for password mode, not public
         return self.server.config.auth_type == "password"
+    
+    def public_key_auth_supported(self) -> bool:
+        """Check if public key authentication is supported."""
+        # Support public key auth for key mode
+        return self.server.config.auth_type == "key"
+    
+    def kbdint_auth_supported(self) -> bool:
+        """Check if keyboard-interactive authentication is supported."""
+        # Not supported
+        return False
 
     def validate_password(self, username: str, password: str) -> bool:
         """Validate password for a user."""
+        # For public access, accept any password
+        if self.server.config.auth_type == "public":
+            return True
+            
         if self.server.config.auth_type != "password":
             return False
         
@@ -150,54 +162,35 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
             return False
         
         return password == self.server.config.password
-
-
-class SSHDocsProcess(asyncssh.SSHServerProcess):
-    """Process handler for SSH sessions."""
-
-    def __init__(self, server: SSHDocsServer) -> None:
-        self.server = server
-        self.shell: Optional[SSHDocsShell] = None
-
-    def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
-        """Called when channel is opened."""
-        self.chan = chan
-
-    def shell_requested(self) -> bool:
-        """Handle shell request."""
-        return True
-
-    def session_started(self) -> None:
-        """Called when session starts."""
-        # Create shell instance
-        self.shell = SSHDocsShell(
-            stdin=self.stdin,
-            stdout=self.stdout,
-            stderr=self.stderr,
-            content_root=self.server.content_root,
-            site_name=self.server.config.site_name,
-            banner=self.server.config.banner,
-        )
+    
+    def session_requested(self):
+        """Handle session request by returning a handler function."""
+        async def handle_session(stdin, stdout, stderr):
+            """Handler function that receives stream objects."""
+            shell = SSHDocsShell(
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+                content_root=self.server.content_root,
+                site_name=self.server.config.site_name,
+                banner=self.server.config.banner,
+            )
+            try:
+                logger.info("Starting shell session")
+                await shell.run()
+                logger.info("Shell session ended normally")
+            except Exception as e:
+                logger.error(f"Shell error: {e}", exc_info=True)
+            finally:
+                # Close streams to signal session completion
+                stdout.close()
+                stderr.close()
+                logger.info("Streams closed")
         
-        # Start shell in background task
-        asyncio.create_task(self._run_shell())
+        return handle_session
 
-    async def _run_shell(self) -> None:
-        """Run the shell session."""
-        try:
-            await self.shell.run()
-        except Exception as e:
-            logger.error(f"Shell error: {e}")
-        finally:
-            self.exit(0)
 
-    def break_received(self, msec: int) -> bool:
-        """Handle break signal."""
-        return True
 
-    def signal_received(self, signal: str) -> None:
-        """Handle signal."""
-        logger.debug(f"Received signal: {signal}")
 
 
 async def run_server(config: Config) -> None:
