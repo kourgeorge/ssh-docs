@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<![CDATA[<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SSH-Docs - Expose documentation via SSH. Browse your docs using familiar Unix commands over SSH.">
-    <title>SSH-Docs - Documentation via SSH</title>
+    <meta name="description" content="SSH-Docs exposes local documentation over SSH with a read-only shell and familiar Unix-style commands.">
+    <title>SSH-Docs - Browse documentation over SSH</title>
     <style>
         * {
             margin: 0;
@@ -12,36 +12,54 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --bg-1: #0f172a;
+            --bg-2: #1d4ed8;
+            --bg-3: #7c3aed;
+            --text: #1f2937;
+            --muted: #4b5563;
+            --panel: #ffffff;
+            --panel-alt: #f8fafc;
+            --accent: #2563eb;
+            --accent-dark: #1d4ed8;
+            --border: #e5e7eb;
+            --code-bg: #111827;
+            --code-text: #e5e7eb;
+            --success: #059669;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            color: var(--text);
+            background: linear-gradient(135deg, var(--bg-1) 0%, var(--bg-2) 50%, var(--bg-3) 100%);
             min-height: 100vh;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1120px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px;
         }
 
         header {
-            text-align: center;
-            padding: 60px 20px;
             color: white;
+            text-align: center;
+            padding: 72px 20px 56px;
         }
 
         h1 {
-            font-size: 3.5em;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 3.4rem;
+            line-height: 1.1;
+            margin-bottom: 16px;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
         }
 
         .tagline {
-            font-size: 1.5em;
-            margin-bottom: 30px;
+            font-size: 1.35rem;
             opacity: 0.95;
+            max-width: 760px;
+            margin: 0 auto 24px;
         }
 
         .badges {
@@ -49,192 +67,221 @@
             justify-content: center;
             gap: 10px;
             flex-wrap: wrap;
-            margin-bottom: 30px;
+            margin-bottom: 28px;
         }
 
         .badge {
-            background: rgba(255,255,255,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            padding: 7px 14px;
+            border-radius: 999px;
+            font-size: 0.95rem;
             backdrop-filter: blur(10px);
+        }
+
+        .hero-copy {
+            max-width: 820px;
+            margin: 0 auto;
+            font-size: 1.08rem;
+            opacity: 0.95;
         }
 
         .cta-buttons {
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 16px;
             flex-wrap: wrap;
-            margin-top: 40px;
+            margin-top: 36px;
         }
 
         .btn {
-            padding: 15px 40px;
-            font-size: 1.1em;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
+            padding: 14px 26px;
+            border-radius: 999px;
             text-decoration: none;
+            font-weight: 700;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
             display: inline-block;
-            transition: transform 0.2s, box-shadow 0.2s;
-            font-weight: 600;
-        }
-
-        .btn-primary {
-            background: white;
-            color: #2a5298;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-
-        .btn-secondary {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 2px solid white;
-            backdrop-filter: blur(10px);
         }
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--accent-dark);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+        }
+
+        .btn-secondary {
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.82);
+            background: rgba(255, 255, 255, 0.08);
         }
 
         .content {
-            background: white;
-            border-radius: 20px;
-            padding: 60px 40px;
-            margin-top: -40px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-            margin: 40px 0;
-        }
-
-        .feature {
-            text-align: center;
-            padding: 30px;
-            border-radius: 15px;
-            background: #f8f9fa;
-            transition: transform 0.2s;
-        }
-
-        .feature:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .feature-icon {
-            font-size: 3em;
-            margin-bottom: 15px;
-        }
-
-        .feature h3 {
-            color: #2a5298;
-            margin-bottom: 10px;
-        }
-
-        .code-block {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 25px;
-            border-radius: 10px;
-            overflow-x: auto;
-            margin: 30px 0;
-            font-family: 'Courier New', monospace;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-
-        .code-block code {
-            font-size: 0.95em;
-            line-height: 1.8;
-        }
-
-        .comment {
-            color: #6a9955;
-        }
-
-        .command {
-            color: #4ec9b0;
-        }
-
-        .string {
-            color: #ce9178;
+            background: var(--panel);
+            border-radius: 24px;
+            padding: 52px 36px;
+            margin-top: -24px;
+            box-shadow: 0 18px 60px rgba(15, 23, 42, 0.24);
         }
 
         section {
-            margin: 60px 0;
+            margin: 0 0 56px;
+        }
+
+        section:last-child {
+            margin-bottom: 0;
         }
 
         h2 {
-            color: #2a5298;
-            font-size: 2.5em;
-            margin-bottom: 30px;
+            font-size: 2.1rem;
+            color: var(--accent-dark);
+            margin-bottom: 20px;
             text-align: center;
         }
 
         h3 {
-            font-size: 1.5em;
-            margin: 30px 0 15px;
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+            color: var(--text);
         }
 
-        .commands-grid {
+        p.section-intro {
+            text-align: center;
+            color: var(--muted);
+            max-width: 760px;
+            margin: 0 auto 28px;
+        }
+
+        .features,
+        .highlights {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 30px 0;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 18px;
+            margin-top: 28px;
         }
 
-        .command-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #2a5298;
+        .card {
+            background: var(--panel-alt);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 22px;
         }
 
-        .command-item code {
-            color: #2a5298;
-            font-weight: bold;
+        .card .icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            color: var(--muted);
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            border-radius: 14px;
+            padding: 22px;
+            overflow-x: auto;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            margin: 20px 0;
+        }
+
+        .code-block pre,
+        .code-block code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            white-space: pre;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 22px;
+        }
+
+        .list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .list-item {
+            padding: 14px 16px;
+            border-left: 4px solid var(--accent);
+            background: var(--panel-alt);
+            border-radius: 10px;
+        }
+
+        .list-item strong {
+            color: var(--accent-dark);
+        }
+
+        .command-list {
+            text-align: center;
+            font-size: 1.02rem;
+            font-weight: 600;
+            color: var(--success);
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 14px;
+            padding: 18px;
+            margin-top: 18px;
+        }
+
+        .links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .links a {
+            color: var(--accent-dark);
+            text-decoration: none;
+            font-weight: 700;
+            border-bottom: 2px solid rgba(37, 99, 235, 0.28);
+            padding-bottom: 2px;
         }
 
         footer {
             text-align: center;
-            padding: 40px 20px;
             color: white;
-            margin-top: 60px;
+            padding: 40px 20px 28px;
         }
 
         footer a {
             color: white;
             text-decoration: none;
-            border-bottom: 1px solid white;
-        }
-
-        footer a:hover {
-            opacity: 0.8;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.8);
         }
 
         @media (max-width: 768px) {
+            header {
+                padding-top: 56px;
+            }
+
             h1 {
-                font-size: 2.5em;
+                font-size: 2.5rem;
             }
 
             .tagline {
-                font-size: 1.2em;
+                font-size: 1.1rem;
             }
 
             .content {
-                padding: 40px 20px;
-            }
-
-            .cta-buttons {
-                flex-direction: column;
+                padding: 34px 20px;
             }
 
             .btn {
                 width: 100%;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
             }
         }
     </style>
@@ -243,14 +290,17 @@
     <div class="container">
         <header>
             <h1>🔐 SSH-Docs</h1>
-            <p class="tagline">Expose documentation via SSH</p>
+            <p class="tagline">Browse local documentation over SSH with a small read-only shell.</p>
             <div class="badges">
                 <span class="badge">Python 3.8+</span>
                 <span class="badge">MIT License</span>
-                <span class="badge">Open Source</span>
+                <span class="badge">asyncssh + click</span>
             </div>
-            <p style="font-size: 1.2em; margin-top: 20px;">Browse your documentation using familiar Unix commands over SSH</p>
-            
+            <p class="hero-copy">
+                SSH-Docs starts an SSH server for your docs and lets users explore files with familiar commands like
+                <code>ls</code>, <code>cd</code>, <code>cat</code>, <code>find</code>, <code>grep</code>,
+                <code>head</code>, <code>tail</code>, <code>pwd</code>, and <code>help</code>.
+            </p>
             <div class="cta-buttons">
                 <a href="https://pypi.org/project/ssh-docs/" class="btn btn-primary">Install from PyPI</a>
                 <a href="https://github.com/kourgeorge/ssh-docs" class="btn btn-secondary">View on GitHub</a>
@@ -259,165 +309,180 @@
 
         <div class="content">
             <section>
-                <h2>✨ Features</h2>
+                <h2>Why SSH-Docs?</h2>
+                <p class="section-intro">
+                    It gives terminal-first teams a simple way to expose documentation over SSH without building a web UI.
+                </p>
                 <div class="features">
-                    <div class="feature">
-                        <div class="feature-icon">🔒</div>
-                        <h3>Secure SSH Access</h3>
-                        <p>Standard SSH protocol with multiple authentication options</p>
+                    <div class="card">
+                        <div class="icon">📖</div>
+                        <h3>Read-only browsing</h3>
+                        <p>Users can navigate and inspect files without editing content.</p>
                     </div>
-                    <div class="feature">
-                        <div class="feature-icon">📁</div>
-                        <h3>Read-Only Browsing</h3>
-                        <p>Safe exploration of documentation files</p>
+                    <div class="card">
+                        <div class="icon">🧭</div>
+                        <h3>Familiar commands</h3>
+                        <p>Browse docs with Unix-style commands instead of learning a custom interface.</p>
                     </div>
-                    <div class="feature">
-                        <div class="feature-icon">🛠️</div>
-                        <h3>Unix Commands</h3>
-                        <p>Familiar commands: ls, cd, cat, grep, find</p>
+                    <div class="card">
+                        <div class="icon">⚡</div>
+                        <h3>Low setup</h3>
+                        <p>Start with defaults, or add a YAML config file only when you need more control.</p>
                     </div>
-                    <div class="feature">
-                        <div class="feature-icon">⚙️</div>
-                        <h3>Zero Config</h3>
-                        <p>Works out of the box with sensible defaults</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">🎨</div>
-                        <h3>Customizable</h3>
-                        <p>Optional YAML configuration for advanced setups</p>
-                    </div>
-                    <div class="feature">
-                        <div class="feature-icon">🚀</div>
-                        <h3>Easy Setup</h3>
-                        <p>Single command to start serving docs</p>
+                    <div class="card">
+                        <div class="icon">🔐</div>
+                        <h3>Flexible auth</h3>
+                        <p>Run in public mode or require a password or authorized SSH keys.</p>
                     </div>
                 </div>
             </section>
 
             <section>
-                <h2>📦 Installation</h2>
-                <div class="code-block">
-                    <code><span class="comment"># Install from PyPI</span>
-pip install ssh-docs</code>
-                </div>
+                <h2>Quick Start</h2>
+                <p class="section-intro">Install the package, serve a directory, then connect with any SSH client.</p>
+                <div class="code-block"><pre><code>pip install ssh-docs
+
+# Serve an auto-detected docs directory, or the current directory if none is found
+ssh-docs serve
+
+# Serve a specific directory
+ssh-docs serve ./docs
+
+# Use a custom port
+ssh-docs serve ./docs --port 3000
+
+# Connect
+ssh localhost -p 2222</code></pre></div>
             </section>
 
             <section>
-                <h2>🚀 Quick Start</h2>
-                <div class="code-block">
-                    <code><span class="comment"># Serve current directory</span>
-<span class="command">ssh-docs</span> serve
-
-<span class="comment"># Serve specific directory</span>
-<span class="command">ssh-docs</span> serve ./docs
-
-<span class="comment"># Custom port and site name</span>
-<span class="command">ssh-docs</span> serve ./docs -p 3000 -n <span class="string">"My API Docs"</span>
-
-<span class="comment"># Initialize config file</span>
-<span class="command">ssh-docs</span> init --interactive</code>
-                </div>
-
-                <h3>Connect to Server</h3>
-                <div class="code-block">
-                    <code><span class="command">ssh</span> localhost -p 2222</code>
-                </div>
+                <h2>Available Shell Commands</h2>
+                <p class="section-intro">The interactive shell intentionally stays small and focused on browsing.</p>
+                <div class="command-list">pwd, ls, cd, cat, head, tail, find, grep, help, exit</div>
+                <div class="code-block"><pre><code>/site$ ls
+/site$ cd guides
+/site$ cat getting-started.md
+/site$ grep -R "authentication" .
+/site$ find . -name "*.md"
+/site$ head -n 20 README.md
+/site$ tail -n 10 changelog.txt
+/site$ pwd
+/site$ help
+/site$ exit</code></pre></div>
             </section>
 
             <section>
-                <h2>💻 Available Commands</h2>
-                <p style="text-align: center; margin-bottom: 30px;">Once connected, use these familiar Unix commands:</p>
-                <div class="commands-grid">
-                    <div class="command-item">
-                        <code>ls [path]</code>
-                        <p>List directory contents</p>
+                <h2>CLI Commands</h2>
+                <div class="two-column">
+                    <div class="card">
+                        <h3><code>ssh-docs serve</code></h3>
+                        <p>Start the SSH server for a documentation directory.</p>
+                        <div class="list" style="margin-top: 14px;">
+                            <div class="list-item"><strong>Options:</strong> <code>--port</code>, <code>--site-name</code>, <code>--config</code>, <code>--host</code>, <code>--auth</code>, <code>--keys-file</code>, <code>--password</code>, <code>--no-config</code>, <code>--log-level</code></div>
+                        </div>
                     </div>
-                    <div class="command-item">
-                        <code>cd &lt;path&gt;</code>
-                        <p>Change directory</p>
+                    <div class="card">
+                        <h3><code>ssh-docs init</code></h3>
+                        <p>Create a <code>.ssh-docs.yml</code> configuration file.</p>
                     </div>
-                    <div class="command-item">
-                        <code>pwd</code>
-                        <p>Print working directory</p>
+                    <div class="card">
+                        <h3><code>ssh-docs validate</code></h3>
+                        <p>Validate config syntax and inspect resolved settings.</p>
                     </div>
-                    <div class="command-item">
-                        <code>cat &lt;file&gt;</code>
-                        <p>Display file contents</p>
+                    <div class="card">
+                        <h3><code>ssh-docs keygen</code></h3>
+                        <p>Generate SSH host keys for the server.</p>
                     </div>
-                    <div class="command-item">
-                        <code>head [-n N] &lt;file&gt;</code>
-                        <p>Show first N lines</p>
-                    </div>
-                    <div class="command-item">
-                        <code>tail [-n N] &lt;file&gt;</code>
-                        <p>Show last N lines</p>
-                    </div>
-                    <div class="command-item">
-                        <code>find [path] [-name pattern]</code>
-                        <p>Find files</p>
-                    </div>
-                    <div class="command-item">
-                        <code>grep [-R] &lt;pattern&gt; &lt;path&gt;</code>
-                        <p>Search file contents</p>
-                    </div>
-                    <div class="command-item">
-                        <code>help</code>
-                        <p>Show available commands</p>
-                    </div>
-                    <div class="command-item">
-                        <code>exit</code>
-                        <p>Close session</p>
+                    <div class="card">
+                        <h3><code>ssh-docs completion</code></h3>
+                        <p>Generate shell completion scripts for Bash, Zsh, or Fish.</p>
                     </div>
                 </div>
             </section>
 
             <section>
-                <h2>⚙️ Configuration</h2>
-                <p style="text-align: center; margin-bottom: 30px;">Create a <code>.ssh-docs.yml</code> file for advanced configuration:</p>
-                <div class="code-block">
-                    <code><span class="comment"># Basic settings</span>
-site_name: <span class="string">"My Project Documentation"</span>
-content_root: <span class="string">"./docs"</span>
+                <h2>Configuration Highlights</h2>
+                <p class="section-intro">SSH-Docs can run without config, but a YAML file enables more control.</p>
+                <div class="highlights">
+                    <div class="card">
+                        <h3>Core settings</h3>
+                        <p><code>site_name</code>, <code>content_root</code>, <code>port</code>, and <code>host</code>.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Authentication</h3>
+                        <p>Set <code>auth.type</code> to <code>public</code>, <code>password</code>, or <code>key</code>.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Features</h3>
+                        <p>Feature flags exist for syntax highlighting, line numbers, and search indexing.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Rate limiting</h3>
+                        <p>Control connection and failed-auth thresholds in the <code>rate_limiting</code> section.</p>
+                    </div>
+                </div>
+                <div class="code-block"><pre><code>site_name: "My Project Documentation"
+content_root: "./docs"
 port: 2222
-host: <span class="string">"0.0.0.0"</span>
+host: "0.0.0.0"
 
-<span class="comment"># Authentication</span>
 auth:
-  type: <span class="string">"public"</span>  <span class="comment"># Options: public, key, password</span>
+  type: "public"
 
-<span class="comment"># Server settings</span>
 server:
   max_connections: 10
   timeout: 300
-  log_level: <span class="string">"info"</span></code>
+  log_level: "info"
+
+features:
+  syntax_highlighting: false
+  line_numbers: false
+  search_index: false
+
+rate_limiting:
+  enabled: true
+  max_connections_per_ip: 3
+  max_connections_per_minute: 10
+  max_failed_auth_attempts: 5
+  failed_auth_window_seconds: 300
+  max_total_connections: 100</code></pre></div>
+            </section>
+
+            <section>
+                <h2>Auto-Detection</h2>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Content root</h3>
+                        <p>SSH-Docs checks <code>docs/</code>, <code>documentation/</code>, <code>public/</code>, and <code>dist/</code> before falling back to the current directory.</p>
+                    </div>
+                    <div class="card">
+                        <h3>Site name</h3>
+                        <p>SSH-Docs reads <code>package.json</code>, then <code>pyproject.toml</code>, and finally the current directory name.</p>
+                    </div>
                 </div>
             </section>
 
             <section>
-                <h2>🔗 Links</h2>
-                <div style="text-align: center; font-size: 1.2em;">
-                    <p style="margin: 20px 0;">
-                        <a href="https://pypi.org/project/ssh-docs/" style="color: #2a5298; text-decoration: none; border-bottom: 2px solid #2a5298;">PyPI Package</a>
-                    </p>
-                    <p style="margin: 20px 0;">
-                        <a href="https://github.com/kourgeorge/ssh-docs" style="color: #2a5298; text-decoration: none; border-bottom: 2px solid #2a5298;">GitHub Repository</a>
-                    </p>
-                    <p style="margin: 20px 0;">
-                        <a href="https://github.com/kourgeorge/ssh-docs#readme" style="color: #2a5298; text-decoration: none; border-bottom: 2px solid #2a5298;">Documentation</a>
-                    </p>
+                <h2>Links</h2>
+                <p class="section-intro">Project resources and package distribution.</p>
+                <div class="links">
+                    <a href="https://pypi.org/project/ssh-docs/">PyPI</a>
+                    <a href="https://github.com/kourgeorge/ssh-docs">GitHub</a>
+                    <a href="https://github.com/kourgeorge/ssh-docs/issues">Issues</a>
+                    <a href="https://github.com/kourgeorge/ssh-docs#readme">README</a>
                 </div>
             </section>
         </div>
 
         <footer>
-            <p>Made with ❤️ for developers who love the terminal</p>
+            <p>Made for developers who prefer the terminal.</p>
             <p style="margin-top: 10px;">
-                <a href="https://github.com/kourgeorge/ssh-docs">GitHub</a> • 
-                <a href="https://pypi.org/project/ssh-docs/">PyPI</a> • 
+                <a href="https://github.com/kourgeorge/ssh-docs">GitHub</a> •
+                <a href="https://pypi.org/project/ssh-docs/">PyPI</a> •
                 <a href="https://github.com/kourgeorge/ssh-docs/issues">Issues</a>
             </p>
-            <p style="margin-top: 20px; opacity: 0.8;">© 2026 SSH-Docs Contributors • MIT License</p>
         </footer>
     </div>
 </body>
 </html>
+]]>

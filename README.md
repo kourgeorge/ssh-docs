@@ -4,18 +4,20 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Expose documentation via SSH** - Browse your documentation using familiar Unix commands over SSH.
+**Expose documentation via SSH** — browse local documentation using familiar Unix-style commands over an SSH session.
 
-**🎉 Now available on PyPI!** Install with: `pip install ssh-docs`
+SSH-Docs starts a read-only SSH server for a directory of files and gives connected users a small shell with commands like `ls`, `cd`, `cat`, `find`, `grep`, `head`, `tail`, `pwd`, and `help`.
 
 ## Features
 
-- 🔒 **Secure SSH Access** - Standard SSH protocol with authentication options
-- 📁 **Read-Only Browsing** - Safe exploration of documentation files
-- 🛠️ **Unix Commands** - Familiar commands: `ls`, `cd`, `cat`, `grep`, `find`, `head`, `tail`
-- ⚙️ **Zero Config** - Works out of the box with sensible defaults
-- 🎨 **Customizable** - Optional YAML configuration for advanced setups
-- 🚀 **Easy Setup** - Single command to start serving docs
+- Read-only documentation browsing over SSH
+- Familiar shell commands for navigating and searching files
+- Zero-config startup with automatic content-root detection
+- Optional YAML configuration via `.ssh-docs.yml`
+- Public, password, or authorized-keys authentication modes
+- Built-in shell completion generation for Bash, Zsh, and Fish
+- Basic rate limiting controls in configuration
+- Automatic site-name detection from `pyproject.toml`, `package.json`, or the current directory
 
 ## Installation
 
@@ -25,17 +27,17 @@ pip install ssh-docs
 
 ## Quick Start
 
-### Serve Documentation (Zero Config)
+### Serve documentation
 
 ```bash
-# Serve current directory
+# Serve an auto-detected docs directory, or the current directory if none is found
 ssh-docs serve
 
-# Serve specific directory
+# Serve a specific directory
 ssh-docs serve ./docs
 
-# Custom port
-ssh-docs serve ./docs -p 3000
+# Use a custom port
+ssh-docs serve ./docs --port 3000
 ```
 
 Then connect:
@@ -44,196 +46,87 @@ Then connect:
 ssh localhost -p 2222
 ```
 
-### Basic Commands
-
-Once connected, use familiar Unix commands:
+If you bind to a non-default host or port, connect with the same values:
 
 ```bash
-/site$ ls                    # List files
-/site$ cd docs              # Change directory
-/site$ cat README.md        # View file
-/site$ grep "API" -R .      # Search content
-/site$ find . -name "*.md"  # Find files
-/site$ head -n 20 file.txt  # First 20 lines
-/site$ tail -n 10 file.txt  # Last 10 lines
-/site$ pwd                  # Current directory
-/site$ help                 # Show commands
-/site$ exit                 # Close session
+ssh 127.0.0.1 -p 3000
 ```
 
-## Configuration
+### Available shell commands
 
-### Initialize Config File
+Once connected, SSH-Docs exposes these commands:
+
+```text
+pwd, ls, cd, cat, head, tail, find, grep, help, exit
+```
+
+Example session:
 
 ```bash
-# Create .ssh-docs.yml with defaults
-ssh-docs init
-
-# Interactive setup
-ssh-docs init --interactive
+/site$ ls
+/site$ cd guides
+/site$ cat getting-started.md
+/site$ grep -R "authentication" .
+/site$ find . -name "*.md"
+/site$ head -n 20 README.md
+/site$ tail -n 10 changelog.txt
+/site$ pwd
+/site$ help
+/site$ exit
 ```
 
-### Configuration File (.ssh-docs.yml)
-
-```yaml
-# Basic settings
-site_name: "My Project Documentation"
-content_root: "./docs"
-port: 2222
-host: "0.0.0.0"
-
-# Authentication
-auth:
-  type: "public"  # Options: public, key, password
-  # For key-based auth:
-  # authorized_keys: "~/.ssh/authorized_keys"
-  # For password auth:
-  # password: "${SSH_DOCS_PASSWORD}"
-
-# Server settings
-server:
-  banner: |
-    Welcome to {site_name} Documentation
-    Type 'help' for available commands
-  max_connections: 10
-  timeout: 300
-  log_level: "info"
-
-# Ignore patterns
-ignore:
-  - "*.pyc"
-  - "__pycache__"
-  - ".git"
-  - "node_modules"
-```
-
-## Authentication
-
-### Public Access (Default)
-
-No authentication required - anyone can connect:
-
-```bash
-ssh-docs serve ./docs
-```
-
-### Password Authentication
-
-```bash
-ssh-docs serve ./docs --auth password --password secret123
-```
-
-Or use environment variable:
-
-```bash
-export SSH_DOCS_PASSWORD="secret123"
-ssh-docs serve ./docs --auth password
-```
-
-### Key-Based Authentication
-
-```bash
-ssh-docs serve ./docs --auth key --keys-file ~/.ssh/authorized_keys
-```
-
-## Advanced Usage
-
-### Generate Host Keys
-
-```bash
-# Generate keys in default location
-ssh-docs keygen
-
-# Custom location
-ssh-docs keygen --output-dir ./keys
-```
-
-### Validate Configuration
-
-```bash
-# Validate default config
-ssh-docs validate
-
-# Validate specific config
-ssh-docs validate custom-config.yml
-```
-
-### Using Config File
-
-```bash
-# Use default .ssh-docs.yml
-ssh-docs serve
-
-# Use custom config
-ssh-docs serve --config production.yml
-
-# Ignore config file
-ssh-docs serve --no-config
-```
-
-## CLI Reference
+## CLI Commands
 
 ### `ssh-docs serve`
 
-Start SSH documentation server.
+Start the SSH documentation server.
+
+**Arguments:**
+- `CONTENT_DIR` — directory to serve
 
 **Options:**
-- `CONTENT_DIR` - Directory to serve (default: auto-detect)
-- `-p, --port` - Port to listen on (default: 2222)
-- `-n, --site-name` - Site name for banner (default: auto-detect)
-- `-c, --config` - Config file path (default: .ssh-docs.yml)
-- `--host` - Host to bind to (default: 0.0.0.0)
-- `--auth` - Auth type: public, key, password (default: public)
-- `--keys-file` - Authorized keys file (for key auth)
-- `--password` - Password (for password auth)
-- `--no-config` - Ignore config file
-- `--log-level` - Log level: debug, info, warn, error
+- `-p, --port` — port to listen on
+- `-n, --site-name` — site name shown in the shell/banner context
+- `-c, --config` — path to a config file
+- `--host` — host to bind to
+- `--auth` — authentication mode: `public`, `key`, or `password`
+- `--keys-file` — authorized keys file for key authentication
+- `--password` — password for password authentication
+- `--no-config` — ignore `.ssh-docs.yml`
+- `--log-level` — one of `debug`, `info`, `warn`, `error`
 
 **Examples:**
 
 ```bash
-# Basic usage
 ssh-docs serve ./docs
-
-# Custom port and name
-ssh-docs serve ./docs -p 3000 -n "My API Docs"
-
-# Password auth
+ssh-docs serve ./docs --port 3000 --site-name "My API Docs"
 ssh-docs serve --auth password --password secret123
-
-# Use config file
 ssh-docs serve --config production.yml
 ```
 
 ### `ssh-docs init`
 
-Initialize configuration file.
+Create a `.ssh-docs.yml` configuration file.
 
 **Options:**
-- `--interactive` - Interactive setup wizard
-- `--template` - Template: basic, advanced
+- `--interactive` — prompt for common settings
+- `--template` — accepts `basic` or `advanced`
 
-**Examples:**
+Examples:
 
 ```bash
-# Create basic config
 ssh-docs init
-
-# Interactive setup
 ssh-docs init --interactive
 ```
 
 ### `ssh-docs validate`
 
-Validate configuration file.
+Validate a config file.
 
-**Examples:**
+Examples:
 
 ```bash
-# Validate default config
 ssh-docs validate
-
-# Validate specific config
 ssh-docs validate custom-config.yml
 ```
 
@@ -242,181 +135,179 @@ ssh-docs validate custom-config.yml
 Generate SSH host keys.
 
 **Options:**
-- `--output-dir` - Where to save keys (default: ~/.ssh-docs/keys)
-- `--force` - Overwrite existing keys
+- `--output-dir` — output directory for generated keys
+- `--force` — overwrite existing keys
 
-**Examples:**
+Examples:
 
 ```bash
-# Generate in default location
 ssh-docs keygen
-
-# Custom location
 ssh-docs keygen --output-dir ./keys
+```
+
+### `ssh-docs completion`
+
+Generate a shell completion script.
+
+**Required option:**
+- `--shell` — one of `bash`, `zsh`, or `fish`
+
+Examples:
+
+```bash
+ssh-docs completion --shell bash
+ssh-docs completion --shell zsh
+ssh-docs completion --shell fish
+```
+
+## Configuration
+
+SSH-Docs optionally loads `.ssh-docs.yml` from the current directory.
+
+Example:
+
+```yaml
+site_name: "My Project Documentation"
+content_root: "./docs"
+port: 2222
+host: "0.0.0.0"
+
+auth:
+  type: "public" # public, key, password
+  # authorized_keys: "~/.ssh/authorized_keys"
+  # password: "${SSH_DOCS_PASSWORD}"
+
+server:
+  banner: |
+    Welcome to {site_name} Documentation
+    Type 'help' for available commands
+  max_connections: 10
+  timeout: 300
+  log_level: "info"
+  # log_file: "./ssh-docs.log"
+
+features:
+  syntax_highlighting: false
+  line_numbers: false
+  search_index: false
+
+ignore:
+  - "*.pyc"
+  - "__pycache__"
+  - ".git"
+  - "node_modules"
+
+rate_limiting:
+  enabled: true
+  max_connections_per_ip: 3
+  max_connections_per_minute: 10
+  max_failed_auth_attempts: 5
+  failed_auth_window_seconds: 300
+  max_total_connections: 100
+```
+
+### Config behavior
+
+- If no config file exists, SSH-Docs runs with defaults.
+- Relative `content_root` values are resolved relative to the config file.
+- Passwords can be read from environment variables like `${SSH_DOCS_PASSWORD}`.
+- If `content_root` is not set explicitly, SSH-Docs auto-detects one of: `docs/`, `documentation/`, `public/`, `dist/`, otherwise it falls back to the current directory.
+
+## Authentication
+
+### Public access
+
+Public mode disables authentication entirely:
+
+```bash
+ssh-docs serve ./docs --auth public
+```
+
+### Password authentication
+
+```bash
+ssh-docs serve ./docs --auth password --password secret123
+```
+
+Or with an environment variable in config:
+
+```bash
+export SSH_DOCS_PASSWORD="secret123"
+ssh-docs serve
+```
+
+### Authorized keys authentication
+
+```bash
+ssh-docs serve ./docs --auth key --keys-file ~/.ssh/authorized_keys
 ```
 
 ## Shell Completion
 
-SSH-Docs supports tab completion for commands, options, and file paths in Bash, Zsh, and Fish shells.
+Generate and install completions for your shell.
 
-### Installation
+### Bash
 
-**Bash:**
 ```bash
-# Add to ~/.bashrc
 ssh-docs completion --shell bash >> ~/.bashrc
 source ~/.bashrc
 ```
 
-**Zsh:**
-```zsh
-# Add to ~/.zshrc
+### Zsh
+
+```bash
 ssh-docs completion --shell zsh >> ~/.zshrc
 source ~/.zshrc
 ```
 
-**Fish:**
-```fish
-# Add to ~/.config/fish/config.fish
+### Fish
+
+```bash
 ssh-docs completion --shell fish >> ~/.config/fish/config.fish
 source ~/.config/fish/config.fish
 ```
-
-### What Gets Completed
-
-Once enabled, tab completion works for:
-
-- **Commands**: `serve`, `init`, `validate`, `keygen`, `completion`
-- **Options**: `--port`, `--config`, `--auth`, etc.
-- **Values**: Authentication types (`public`, `key`, `password`)
-- **File Paths**: Config files, directories, and other paths
-- **Config Files**: Automatically suggests `.yml` and `.yaml` files
-
-### Usage Examples
-
-```bash
-# Press TAB to complete commands
-ssh-docs <TAB>
-# Shows: serve  init  validate  keygen  completion
-
-# Press TAB to complete options
-ssh-docs serve --<TAB>
-# Shows: --port  --config  --auth  --host  ...
-
-# Press TAB to complete auth types
-ssh-docs serve --auth <TAB>
-# Shows: public  key  password
-
-# Press TAB to complete config files
-ssh-docs serve --config <TAB>
-# Shows: .ssh-docs.yml  custom-config.yml  ...
-```
-
-## Use Cases
-
-### Local Development
-
-```bash
-# Serve docs while developing
-cd my-project
-ssh-docs serve ./docs
-```
-
-### CI/CD Integration
-
-```bash
-# In Dockerfile or CI script
-pip install ssh-docs
-ssh-docs serve /app/docs --port 2222 &
-```
-
-### Production Deployment
-
-```yaml
-# docker-compose.yml
-services:
-  docs:
-    image: python:3.11
-    command: sh -c "pip install ssh-docs && ssh-docs serve /docs"
-    ports:
-      - "2222:2222"
-    volumes:
-      - ./docs:/docs:ro
-```
-
-### Documentation Server
-
-```bash
-# Production setup with auth
-ssh-docs init --interactive
-ssh-docs keygen
-ssh-docs serve --auth key --keys-file ~/.ssh/authorized_keys
-```
-
-## Security Considerations
-
-- **Read-Only**: All operations are read-only by default
-- **Path Traversal Protection**: Prevents access outside content root
-- **Authentication**: Supports password and key-based auth
-- **Connection Limits**: Configurable max connections
-- **Timeouts**: Automatic session timeouts
 
 ## Auto-Detection
 
 SSH-Docs automatically detects:
 
-- **Content Directory**: Looks for `docs/`, `documentation/`, `public/`, `dist/`
-- **Site Name**: Reads from `package.json`, `pyproject.toml`, or directory name
-- **Host Keys**: Generates if not present
+- **Content root** from `docs/`, `documentation/`, `public/`, or `dist/`
+- **Site name** from `package.json`, `pyproject.toml`, or the current directory
 
 ## Requirements
 
 - Python 3.8+
-- asyncssh
-- click
-- pyyaml (optional, for config files)
+- `asyncssh`
+- `click`
+- `pyyaml`
 
 ## Development
 
 ```bash
-# Clone repository
 git clone https://github.com/kourgeorge/ssh-docs.git
 cd ssh-docs
-
-# Install in development mode
 pip install -e .
-
-# Run tests
-pytest
-
-# Run locally
-python -m ssh_docs serve ./demo-website
+python -m ssh_docs serve ./docs
 ```
+
+## Security Notes
+
+- File browsing is read-only
+- Content access is restricted to the configured content root
+- Authentication can be disabled, password-based, or key-based
+- Rate limiting settings are available in config
+- Logging can be configured with a log level and optional log file
 
 ## License
 
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-Contributions welcome! Please open an issue or submit a pull request.
+MIT License.
 
 ## Support
 
-- GitHub Issues: https://github.com/kourgeorge/ssh-docs/issues
-- Documentation: https://github.com/kourgeorge/ssh-docs#readme
-
-## Roadmap
-
-- [ ] Syntax highlighting for code files
-- [ ] Search index for faster grep
-- [ ] Custom command plugins
-- [ ] Docker image
-- [ ] NPM package wrapper
-- [ ] Web-based terminal viewer
-- [ ] Session recording/replay
-- [ ] Multi-user support with permissions
+- GitHub: https://github.com/kourgeorge/ssh-docs
+- Issues: https://github.com/kourgeorge/ssh-docs/issues
+- PyPI: https://pypi.org/project/ssh-docs/
 
 ---
 
-**Made with ❤️ for developers who love the terminal**
+**Made for developers who prefer the terminal.**
