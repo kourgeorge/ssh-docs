@@ -58,6 +58,15 @@ class Config:
         self.host_key: Optional[Path] = None
         if "host_key" in data:
             self.host_key = Path(data["host_key"]).expanduser()
+        
+        # Rate limiting
+        rate_limit_data = data.get("rate_limiting", {})
+        self.rate_limiting_enabled: bool = rate_limit_data.get("enabled", True)
+        self.max_connections_per_ip: int = rate_limit_data.get("max_connections_per_ip", 3)
+        self.max_connections_per_minute: int = rate_limit_data.get("max_connections_per_minute", 10)
+        self.max_failed_auth_attempts: int = rate_limit_data.get("max_failed_auth_attempts", 5)
+        self.failed_auth_window_seconds: float = rate_limit_data.get("failed_auth_window_seconds", 300.0)
+        self.max_total_connections: int = rate_limit_data.get("max_total_connections", 100)
 
     def __repr__(self) -> str:
         return f"Config(site_name={self.site_name!r}, port={self.port}, content_root={self.content_root})"
@@ -181,6 +190,15 @@ ignore:
   - "__pycache__"
   - ".git"
   - "node_modules"
+
+# Rate limiting (security)
+rate_limiting:
+  enabled: true
+  max_connections_per_ip: 3
+  max_connections_per_minute: 10
+  max_failed_auth_attempts: 5
+  failed_auth_window_seconds: 300  # 5 minutes
+  max_total_connections: 100
 """
 
 

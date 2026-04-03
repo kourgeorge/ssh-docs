@@ -10,7 +10,8 @@ from typing import Optional
 import asyncssh
 
 from .config import Config
-from .shell import SSHDocsShell
+from .shell_factory import DefaultShellFactory
+from .rate_limiter import RateLimiter, RateLimitConfig
 
 
 logger = logging.getLogger(__name__)
@@ -29,9 +30,33 @@ class SSHDocsServer:
             raise ValueError(f"Content root does not exist: {self.content_root}")
         if not self.content_root.is_dir():
             raise ValueError(f"Content root is not a directory: {self.content_root}")
+        
+        # Create shell factory with dependencies
+        self.shell_factory = DefaultShellFactory(
+            content_root=self.content_root,
+            site_name=self.config.site_name,
+            banner=self.config.banner,
+        )
+        
+        # Initialize rate limiter if enabled
+        self.rate_limiter: Optional[RateLimiter] = None
+        if config.rate_limiting_enabled:
+            rate_limit_config = RateLimitConfig(
+                max_connections_per_ip=config.max_connections_per_ip,
+                max_connections_per_minute=config.max_connections_per_minute,
+                max_failed_auth_attempts=config.max_failed_auth_attempts,
+                failed_auth_window_seconds=config.failed_auth_window_seconds,
+                max_total_connections=config.max_total_connections,
+            )
+            self.rate_limiter = RateLimiter(rate_limit_config)
+            logger.info("Rate limiting enabled")
 
     async def start(self) -> None:
         """Start the SSH server."""
+        # Start rate limiter if enabled
+        if self.rate_limiter:
+            await self.rate_limiter.start()
+        
         # Generate or load host key
         host_key = await self._get_host_key()
         
@@ -81,6 +106,10 @@ class SSHDocsServer:
             self.server.close()
             await self.server.wait_closed()
             logger.info("SSH server stopped")
+        
+        # Stop rate limiter if enabled
+        if self.rate_limiter:
+            await self.rate_limiter.stop()
 
 
 
@@ -113,11 +142,37 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
 
     def __init__(self, server: SSHDocsServer) -> None:
         self.server = server
+        self._peer_ip: Optional[str] = None
+        self._connection_allowed = True
 
     def connection_made(self, conn: asyncssh.SSHServerConnection) -> None:
         """Called when a connection is established."""
         peer = conn.get_extra_info("peername")
-        logger.info(f"Connection from {peer}")
+        self._peer_ip = peer[0] if peer else "unknown"
+        self._conn = conn
+        logger.info(f"Connection from {self._peer_ip}")
+        
+        # Check rate limiting asynchronously
+        if self.server.rate_limiter:
+            import asyncio
+            asyncio.create_task(self._check_rate_limit())
+    
+    async def _check_rate_limit(self) -> None:
+        """Async helper to check rate limiting."""
+        if not self.server.rate_limiter or not self._peer_ip:
+            return
+        
+        allowed, reason = await self.server.rate_limiter.check_connection_allowed(self._peer_ip)
+        
+        if not allowed:
+            logger.warning(f"Connection rejected from {self._peer_ip}: {reason}")
+            self._connection_allowed = False
+            if self._conn:
+                self._conn.close()
+            return
+        
+        # Record the connection
+        await self.server.rate_limiter.record_connection(self._peer_ip)
 
     def connection_lost(self, exc: Optional[Exception]) -> None:
         """Called when connection is lost."""
@@ -125,10 +180,21 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
             logger.error(f"Connection lost with error: {exc}")
         else:
             logger.info("Connection closed")
+        
+        # Record disconnection for rate limiting
+        if self.server.rate_limiter and self._peer_ip and self._connection_allowed:
+            import asyncio
+            asyncio.create_task(
+                self.server.rate_limiter.record_disconnection(self._peer_ip)
+            )
 
     def begin_auth(self, username: str) -> bool:
         """Begin authentication for a user."""
         logger.debug(f"Authentication attempt for user: {username}")
+        
+        # Reject if connection was not allowed by rate limiter
+        if not self._connection_allowed:
+            return False
         
         # For public access, skip authentication entirely
         if self.server.config.auth_type == "public":
@@ -166,18 +232,33 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
             logger.error("Password auth enabled but no password configured")
             return False
         
-        return password == self.server.config.password
+        is_valid = password == self.server.config.password
+        
+        # Track authentication attempts for rate limiting
+        if self.server.rate_limiter and self._peer_ip:
+            import asyncio
+            if is_valid:
+                asyncio.create_task(
+                    self.server.rate_limiter.record_auth_success(self._peer_ip)
+                )
+            else:
+                asyncio.create_task(
+                    self.server.rate_limiter.record_auth_failure(self._peer_ip)
+                )
+        
+        return is_valid
     
     def session_requested(self):
         """Handle session request by returning a session handler."""
-        return SSHDocsSession(self.server)
+        return SSHDocsSession(self.server, self.server.shell_factory)
 
 
 class SSHDocsSession(asyncssh.SSHServerSession):
     """SSH session handler for interactive shell."""
     
-    def __init__(self, server: SSHDocsServer) -> None:
+    def __init__(self, server: SSHDocsServer, shell_factory: DefaultShellFactory) -> None:
         self.server = server
+        self.shell_factory = shell_factory
         self._shell = None
         self._chan = None
         self._term_type = None
@@ -223,13 +304,10 @@ class SSHDocsSession(asyncssh.SSHServerSession):
     def session_started(self) -> None:
         """Called when the session is ready to start."""
         logger.info("Session started, creating shell")
-        self._shell = SSHDocsShell(
+        self._shell = self.shell_factory.create_shell(
             input_queue=self._input_queue,
             stdout=self._chan,
             stderr=self._chan,
-            content_root=self.server.content_root,
-            site_name=self.server.config.site_name,
-            banner=self.server.config.banner,
         )
         # Start the shell in the background
         asyncio.create_task(self._run_shell())
