@@ -261,7 +261,7 @@ Readonly session
                     # Regular character
                     else:
                         current_line += char
-                        self.stdout.write(char)
+                        # Note: Don't echo the character - PTY handles echo via terminal modes
                 
                 raw = current_line.strip()
                 if not raw:
