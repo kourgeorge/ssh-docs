@@ -316,15 +316,41 @@ Readonly session
         return normalized
 
     def _to_real_path(self, virtual_path: str) -> Optional[Path]:
-        """Convert virtual path to real filesystem path with security checks."""
+        """Convert virtual path to real filesystem path with security checks.
+        
+        Performs multiple security validations:
+        1. Ensures path starts with /site prefix
+        2. Resolves symlinks and checks final target is within content_root
+        3. Validates that symlinks don't escape the content root
+        
+        Returns None if any security check fails.
+        """
         if not virtual_path.startswith("/site"):
             return None
+        
         rel = virtual_path.removeprefix("/site").lstrip("/")
-        target = (self.content_root / rel).resolve()
+        candidate = self.content_root / rel
+        
+        # Check if the path itself (before resolving) tries to escape
+        try:
+            candidate.relative_to(self.content_root)
+        except ValueError:
+            # Path construction itself is trying to escape
+            return None
+        
+        # Resolve symlinks to get the actual target
+        target = candidate.resolve()
+        
+        # Verify the resolved target is still within content_root
         try:
             target.relative_to(self.content_root)
         except ValueError:
+            # Symlink points outside content_root - security violation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Blocked access to symlink escape: {virtual_path} -> {target}")
             return None
+        
         return target
 
     def _to_virtual_path(self, path: Path) -> str:
