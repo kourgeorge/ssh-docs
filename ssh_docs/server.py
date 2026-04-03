@@ -48,10 +48,13 @@ class SSHDocsServer:
         elif self.config.auth_type == "key" and self.config.authorized_keys:
             server_options["authorized_client_keys"] = self.config.authorized_keys
         
+        elif self.config.auth_type == "public":
+            # Public access - no authentication required
+            # Don't enable any auth methods; begin_auth() will return False to skip auth
+            logger.warning("Server running in PUBLIC mode - no authentication required!")
+        
         else:
-            # Public access - accept any connection without authentication
-            # We enable password auth but accept any password
-            server_options["password_auth"] = True
+            raise ValueError(f"Invalid auth_type: {self.config.auth_type}")
         
         logger.info(f"Starting SSH server on {self.config.host}:{self.config.port}")
         logger.info(f"Content root: {self.content_root}")
@@ -150,15 +153,17 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
         return False
 
     def validate_password(self, username: str, password: str) -> bool:
-        """Validate password for a user."""
-        # For public access, accept any password
-        if self.server.config.auth_type == "public":
-            return True
-            
+        """Validate password for a user.
+        
+        Note: This should never be called in public mode since password_auth
+        is not enabled and begin_auth() returns False.
+        """
         if self.server.config.auth_type != "password":
+            logger.warning(f"validate_password called with auth_type={self.server.config.auth_type}")
             return False
         
         if not self.server.config.password:
+            logger.error("Password auth enabled but no password configured")
             return False
         
         return password == self.server.config.password
