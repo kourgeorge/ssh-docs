@@ -164,30 +164,69 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
         return password == self.server.config.password
     
     def session_requested(self):
-        """Handle session request by returning a handler function."""
-        async def handle_session(stdin, stdout, stderr):
-            """Handler function that receives stream objects."""
-            shell = SSHDocsShell(
-                stdin=stdin,
-                stdout=stdout,
-                stderr=stderr,
-                content_root=self.server.content_root,
-                site_name=self.server.config.site_name,
-                banner=self.server.config.banner,
-            )
-            try:
-                logger.info("Starting shell session")
-                await shell.run()
-                logger.info("Shell session ended normally")
-            except Exception as e:
-                logger.error(f"Shell error: {e}", exc_info=True)
-            finally:
-                # Close streams to signal session completion
-                stdout.close()
-                stderr.close()
-                logger.info("Streams closed")
-        
-        return handle_session
+        """Handle session request by returning a session handler."""
+        return SSHDocsSession(self.server)
+
+
+class SSHDocsSession(asyncssh.SSHServerSession):
+    """SSH session handler for interactive shell."""
+    
+    def __init__(self, server: SSHDocsServer) -> None:
+        self.server = server
+        self._shell = None
+        self._chan = None
+        self._term_type = None
+        self._term_size = (80, 24, 0, 0)
+    
+    def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
+        """Called when the session channel is opened."""
+        self._chan = chan
+        logger.info("Session channel opened")
+    
+    def pty_requested(self, term_type: str, term_size: tuple, term_modes: dict) -> bool:
+        """Handle PTY (pseudo-terminal) request."""
+        self._term_type = term_type
+        self._term_size = term_size
+        logger.info(f"PTY requested: type={term_type}, size={term_size}")
+        # Accept PTY request - this is crucial for interactive features like tab completion
+        return True
+    
+    def shell_requested(self) -> bool:
+        """Handle shell request - return True to accept."""
+        logger.info("Shell requested")
+        return True
+    
+    def terminal_size_changed(self, width: int, height: int, pixwidth: int, pixheight: int) -> None:
+        """Handle terminal size changes."""
+        self._term_size = (width, height, pixwidth, pixheight)
+        logger.debug(f"Terminal size changed: {width}x{height}")
+    
+    def session_started(self) -> None:
+        """Called when the session is ready to start."""
+        logger.info("Session started, creating shell")
+        self._shell = SSHDocsShell(
+            stdin=self._chan,
+            stdout=self._chan,
+            stderr=self._chan.stderr,
+            content_root=self.server.content_root,
+            site_name=self.server.config.site_name,
+            banner=self.server.config.banner,
+        )
+        # Start the shell in the background
+        asyncio.create_task(self._run_shell())
+    
+    async def _run_shell(self) -> None:
+        """Run the shell session."""
+        try:
+            logger.info("Running shell")
+            await self._shell.run()
+            logger.info("Shell ended normally")
+        except Exception as e:
+            logger.error(f"Shell error: {e}", exc_info=True)
+        finally:
+            if self._chan:
+                self._chan.close()
+                logger.info("Channel closed")
 
 
 
