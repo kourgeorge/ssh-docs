@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SSH-Docs exposes local documentation over SSH with a read-only shell and familiar Unix-style commands.">
+    <meta name="description" content="SSH-Docs exposes documentation over SSH so AI coding agents can browse current docs with familiar shell commands.">
     <title>SSH-Docs - Browse documentation over SSH</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -312,16 +312,17 @@
     <div class="container">
         <header>
             <h1>SSH-Docs</h1>
-            <p class="tagline">Browse local documentation over SSH with a small read-only shell.</p>
+            <p class="tagline">Serve documentation over SSH for developers and AI coding agents.</p>
             <div class="badges">
                 <span class="badge">Python 3.8+</span>
                 <span class="badge">MIT License</span>
                 <span class="badge">asyncssh + click</span>
             </div>
             <p class="hero-copy">
-                SSH-Docs starts an SSH server for your docs and lets users explore files with familiar commands like
-                <code>ls</code>, <code>cd</code>, <code>cat</code>, <code>find</code>, <code>grep</code>,
-                <code>head</code>, <code>tail</code>, <code>pwd</code>, and <code>help</code>.
+                SSH-Docs generalizes the docs-over-SSH pattern: publish markdown documentation as a read-only
+                filesystem that agents can explore with <code>ls</code>, <code>find</code>, <code>grep</code>,
+                <code>cat</code>, <code>head</code>, <code>tail</code>, <code>cd</code>, and <code>pwd</code>.
+                Instead of guessing APIs from stale context, agents can inspect the current source docs directly.
             </p>
             <div class="cta-buttons">
                 <a href="https://pypi.org/project/ssh-docs/" class="btn btn-primary">Install from PyPI</a>
@@ -333,28 +334,28 @@
             <section>
                 <h2>Why SSH-Docs?</h2>
                 <p class="section-intro">
-                    It gives terminal-first teams a simple way to expose documentation over SSH without building a web UI.
+                    Built for terminal-first workflows where humans and AI agents both rely on shell-based exploration.
                 </p>
                 <div class="features">
                     <div class="card">
                         <div class="icon">READ ONLY</div>
                         <h3>Read-only browsing</h3>
-                        <p>Users can navigate and inspect files without editing content.</p>
+                        <p>Expose docs safely with a shell that supports inspection, not modification.</p>
                     </div>
                     <div class="card">
                         <div class="icon">UNIX STYLE</div>
                         <h3>Familiar commands</h3>
-                        <p>Browse docs with Unix-style commands instead of learning a custom interface.</p>
+                        <p>Use the same primitives agents already use in codebases: <code>grep</code>, <code>find</code>, <code>cat</code>, and <code>ls</code>.</p>
                     </div>
                     <div class="card">
                         <div class="icon">LOW SETUP</div>
                         <h3>Low setup</h3>
-                        <p>Start with defaults, or add a YAML config file only when you need more control.</p>
+                        <p>Run with defaults in minutes, then add YAML config only when you need policy and tuning.</p>
                     </div>
                     <div class="card">
                         <div class="icon">AUTH MODES</div>
                         <h3>Flexible auth</h3>
-                        <p>Run in public mode or require a password or authorized SSH keys.</p>
+                        <p>Choose public, password, or SSH key auth depending on whether your endpoint is private or internet-facing.</p>
                     </div>
                 </div>
             </section>
@@ -378,8 +379,30 @@ ssh localhost -p 2222</code></pre></div>
             </section>
 
             <section>
+                <h2>AI Agent Workflow</h2>
+                <p class="section-intro">
+                    This project extends the public-docs-over-SSH idea to any team: give coding agents direct bash-style access to your docs.
+                </p>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Why it helps agents</h3>
+                        <p>Agents frequently fail when they rely on outdated memory: they invent APIs, miss required setup, or apply the wrong CLI flags. SSH-Docs keeps them grounded in your latest markdown content.</p>
+                    </div>
+                    <div class="card">
+                        <h3>How to use with AGENTS.md</h3>
+                        <p>Add a short project rule telling agents to check your SSH docs endpoint before making integration decisions.</p>
+                        <div class="code-block"><pre><code># AGENTS.md guidance example
+Before using project-specific APIs or CLI commands:
+1. Connect to docs endpoint: ssh docs.example.com
+2. Use find/grep/cat to verify current behavior.
+3. Prefer documented commands over assumptions.</code></pre></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
                 <h2>Available Shell Commands</h2>
-                <p class="section-intro">The interactive shell intentionally stays small and focused on browsing.</p>
+                <p class="section-intro">The interactive shell intentionally stays small and focused on documentation exploration.</p>
                 <div class="command-list">pwd, ls, cd, cat, head, tail, find, grep, help, exit</div>
                 <div class="code-block"><pre><code>/site$ ls
 /site$ cd guides

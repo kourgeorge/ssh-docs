@@ -4,9 +4,11 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Expose documentation via SSH** — browse local documentation using familiar Unix-style commands over an SSH session.
+**Expose documentation via SSH** for developers and AI coding agents using familiar Unix-style commands.
 
 SSH-Docs starts a read-only SSH server for a directory of files and gives connected users a small shell with commands like `ls`, `cd`, `cat`, `find`, `grep`, `head`, `tail`, `pwd`, and `help`.
+
+This generalizes the docs-over-SSH approach: instead of asking an agent to rely on stale context, you let it browse current markdown docs through the same shell workflow it already uses for code exploration.
 
 ## Features
 
