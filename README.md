@@ -380,7 +380,7 @@ SSH-Docs automatically detects:
 
 ```bash
 # Clone repository
-git clone https://github.com/ssh-docs/ssh-docs.git
+git clone https://github.com/kourgeorge/ssh-docs.git
 cd ssh-docs
 
 # Install in development mode
@@ -403,8 +403,8 @@ Contributions welcome! Please open an issue or submit a pull request.
 
 ## Support
 
-- GitHub Issues: https://github.com/ssh-docs/ssh-docs/issues
-- Documentation: https://github.com/ssh-docs/ssh-docs#readme
+- GitHub Issues: https://github.com/kourgeorge/ssh-docs/issues
+- Documentation: https://github.com/kourgeorge/ssh-docs#readme
 
 ## Roadmap
 

@@ -45,10 +45,10 @@ dev = [
 ssh-docs = "ssh_docs.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/ssh-docs/ssh-docs"
-Documentation = "https://github.com/ssh-docs/ssh-docs#readme"
-Repository = "https://github.com/ssh-docs/ssh-docs"
-Issues = "https://github.com/ssh-docs/ssh-docs/issues"
+Homepage = "https://github.com/kourgeorge/ssh-docs"
+Documentation = "https://github.com/kourgeorge/ssh-docs#readme"
+Repository = "https://github.com/kourgeorge/ssh-docs"
+Issues = "https://github.com/kourgeorge/ssh-docs/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
