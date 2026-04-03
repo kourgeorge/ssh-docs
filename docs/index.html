@@ -363,9 +363,22 @@
             <section>
                 <h2>Quick Start</h2>
                 <p class="section-intro">Install the package, serve a directory, then connect with any SSH client.</p>
-                <div class="code-block"><pre><code>pip install ssh-docs
+                <div class="code-block"><pre><code>pip install ssh-docs</code></pre></div>
+                
+                <h3 style="margin-top: 28px; text-align: center; color: var(--accent-dark);">No-Auth Mode (Recommended for Agents)</h3>
+                <p class="section-intro">The simplest way to start is with public (no-auth) mode, ideal for AI coding agents and local development:</p>
+                <div class="code-block"><pre><code># Serve with no authentication required
+ssh-docs serve ./docs --auth public
 
-# Serve an auto-detected docs directory, or the current directory if none is found
+# Or serve current directory with no auth
+ssh-docs serve --auth public
+
+# Connect without any credentials
+ssh localhost -p 2222</code></pre></div>
+                <p class="section-intro" style="margin-top: 16px;">Perfect for AI coding agents, local development, internal networks, and quick documentation sharing.</p>
+
+                <h3 style="margin-top: 28px; text-align: center; color: var(--accent-dark);">Basic Usage</h3>
+                <div class="code-block"><pre><code># Serve an auto-detected docs directory (uses public auth by default)
 ssh-docs serve
 
 # Serve a specific directory

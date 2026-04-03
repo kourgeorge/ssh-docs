@@ -90,7 +90,15 @@ class SSHDocsShell:
 
     def _default_banner(self) -> str:
         """Generate default welcome banner."""
-        return f"""Connected to {self.site_name}.ssh-docs
+        return f""" ____  ____  _   _      ____   ___   ____ ____  
+/ ___|/ ___|| | | |    |  _ \\ / _ \\ / ___/ ___| 
+\\___ \\\\___ \\| |_| |____| | | | | | | |   \\___ \\ 
+ ___) |___) |  _  |____| |_| | |_| | |___ ___) |
+|____/|____/|_| |_|    |____/ \\___/ \\____|____/ 
+
+Docs-over-SSH lets your agent browse SSH-Docs documentation directly using bash.
+
+Connected to {self.site_name}.ssh-docs
 Source root: {self.content_root}
 Mounted content: /site
 Supported commands: pwd, ls, cd, cat, head, tail, find, grep, help, exit

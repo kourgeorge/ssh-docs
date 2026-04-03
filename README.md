@@ -29,10 +29,34 @@ pip install ssh-docs
 
 ## Quick Start
 
-### Serve documentation
+### No-Auth Mode (Recommended for Agents)
+
+The simplest way to start is with public (no-auth) mode, which is ideal for AI coding agents and local development:
 
 ```bash
-# Serve an auto-detected docs directory, or the current directory if none is found
+# Serve with no authentication required
+ssh-docs serve ./docs --auth public
+
+# Or serve current directory with no auth
+ssh-docs serve --auth public
+```
+
+Then connect without any credentials:
+
+```bash
+ssh localhost -p 2222
+```
+
+This mode is perfect for:
+- AI coding agents that need to browse documentation
+- Local development and testing
+- Internal networks where authentication isn't required
+- Quick documentation sharing
+
+### Basic Usage
+
+```bash
+# Serve an auto-detected docs directory (uses public auth by default)
 ssh-docs serve
 
 # Serve a specific directory
@@ -40,12 +64,6 @@ ssh-docs serve ./docs
 
 # Use a custom port
 ssh-docs serve ./docs --port 3000
-```
-
-Then connect:
-
-```bash
-ssh localhost -p 2222
 ```
 
 If you bind to a non-default host or port, connect with the same values:
