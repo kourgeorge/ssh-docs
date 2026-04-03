@@ -161,27 +161,73 @@ Readonly session
                     
                     # Handle tab completion
                     if char == '\t':
-                        completions = self._complete_path(current_line.split()[-1] if current_line.split() else "")
+                        # Parse the current line more carefully
+                        stripped = current_line.lstrip()
+                        leading_spaces = current_line[:len(current_line) - len(stripped)]
+                        parts = stripped.split()
+                        
+                        # Determine what to complete
+                        if not parts:
+                            # Empty line - show all commands
+                            completions = self.commands
+                        elif len(parts) == 1 and not stripped.endswith(' '):
+                            # Completing command name
+                            prefix = parts[0]
+                            completions = [cmd for cmd in self.commands if cmd.startswith(prefix)]
+                        else:
+                            # Completing path argument
+                            # Find the actual text to complete (last token)
+                            if stripped.endswith(' '):
+                                # Space after command, complete from empty
+                                prefix = ""
+                            else:
+                                # Get last argument
+                                prefix = parts[-1] if len(parts) > 1 else ""
+                            
+                            completions = self._complete_path(prefix)
                         
                         if len(completions) == 1:
                             # Single match - complete it
-                            parts = current_line.split()
-                            if parts:
-                                # Replace last part with completion
-                                parts[-1] = completions[0]
-                                current_line = ' '.join(parts)
+                            completion = completions[0]
+                            
+                            if not parts:
+                                # Was empty, just add the completion
+                                current_line = leading_spaces + completion
+                            elif len(parts) == 1 and not stripped.endswith(' '):
+                                # Completing command
+                                current_line = leading_spaces + completion
                             else:
-                                current_line = completions[0]
+                                # Completing path argument
+                                if stripped.endswith(' '):
+                                    # Add new argument
+                                    current_line = leading_spaces + stripped + completion
+                                else:
+                                    # Replace last argument
+                                    # Rebuild line with all parts except last, then add completion
+                                    if len(parts) > 1:
+                                        current_line = leading_spaces + ' '.join(parts[:-1]) + ' ' + completion
+                                    else:
+                                        current_line = leading_spaces + completion
                             
                             # Clear line and rewrite
-                            self.stdout.write('\r' + ' ' * (len(prompt) + len(current_line) + 10) + '\r')
+                            self.stdout.write('\r' + ' ' * (len(prompt) + 100) + '\r')
                             self.stdout.write(prompt + current_line)
                             
                         elif len(completions) > 1:
                             # Multiple matches - show them
                             self.stdout.write('\n')
-                            for comp in completions:
-                                self.stdout.write(f"{comp}  ")
+                            # Show in columns if many completions
+                            if len(completions) <= 10:
+                                for comp in completions:
+                                    self.stdout.write(f"{comp}  ")
+                            else:
+                                # Show in multiple columns for many items
+                                max_width = max(len(c) for c in completions) + 2
+                                cols = max(1, 80 // max_width)
+                                for i, comp in enumerate(completions):
+                                    self.stdout.write(comp.ljust(max_width))
+                                    if (i + 1) % cols == 0:
+                                        self.stdout.write('\n')
                             self.stdout.write('\n')
                             self.stdout.write(prompt + current_line)
                         
