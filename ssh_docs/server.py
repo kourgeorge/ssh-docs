@@ -116,19 +116,39 @@ class SSHDocsServer:
 
 
     async def _get_host_key(self) -> str:
-        """Get or generate SSH host key."""
+        """Get or generate SSH host key.
+        
+        Each server instance gets its own isolated host key based on:
+        - Port number
+        - Content root path (hashed for uniqueness)
+        
+        This ensures multiple SSH-Docs servers can run simultaneously
+        without sharing keys or interfering with each other.
+        """
         if self.config.host_key and self.config.host_key.exists():
             logger.info(f"Using host key from: {self.config.host_key}")
             return str(self.config.host_key)
         
-        # Generate temporary key
-        logger.info("Generating temporary host key")
+        # Generate instance-specific key path based on port and content root
+        import hashlib
+        content_hash = hashlib.sha256(
+            str(self.content_root.resolve()).encode()
+        ).hexdigest()[:16]
+        
+        key_dir = Path.home() / ".ssh-docs" / "keys"
+        key_filename = f"ssh_host_rsa_key_{self.config.port}_{content_hash}"
+        key_path = key_dir / key_filename
+        
+        if key_path.exists():
+            logger.info(f"Using existing host key from: {key_path}")
+            return str(key_path)
+        
+        # Generate new key only if none exists for this instance
+        logger.info(f"Generating new host key for port {self.config.port}")
         key = asyncssh.generate_private_key("ssh-rsa")
         
-        # Save to default location if possible
-        key_dir = Path.home() / ".ssh-docs" / "keys"
+        # Save to instance-specific location
         key_dir.mkdir(parents=True, exist_ok=True)
-        key_path = key_dir / "ssh_host_rsa_key"
         
         try:
             key.write_private_key(str(key_path))
