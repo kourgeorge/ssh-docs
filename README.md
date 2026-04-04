@@ -4,11 +4,16 @@
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Expose documentation via SSH** for developers and AI coding agents using familiar Unix-style commands.
+**Expose documentation via SSH** - designed for AI coding agents and developers who prefer the terminal.
 
-SSH-Docs starts a read-only SSH server for a directory of files and gives connected users a small shell with commands like `ls`, `cd`, `cat`, `find`, `grep`, `head`, `tail`, `pwd`, and `help`.
+SSH-Docs starts a read-only SSH server that lets AI agents and developers browse documentation using familiar Unix commands (`ls`, `cd`, `cat`, `find`, `grep`, `head`, `tail`, `pwd`).
 
-This generalizes the docs-over-SSH approach: instead of asking an agent to rely on stale context, you let it browse current markdown docs through the same shell workflow it already uses for code exploration.
+**Why SSH for AI Agents?**
+- Agents already use shell commands for code exploration
+- No need to embed docs in prompts or rely on stale context
+- Agents can search, filter, and read exactly what they need
+- Works with any agent that can execute shell commands
+- Inspired by [Supabase's approach](https://supabase.com) to agent-accessible documentation
 
 ## Features
 
@@ -22,39 +27,53 @@ This generalizes the docs-over-SSH approach: instead of asking an agent to rely 
 - Automatic site-name detection from `pyproject.toml`, `package.json`, or the current directory
 - **Automatic agent integration files** - Generates AGENTS.md, SETUP.md, and SKILL.md at the root for AI coding agents
 
-## Agent Integration
+## Agent Integration (Primary Use Case)
 
-SSH-Docs automatically generates three files at the documentation root to help AI coding agents discover and use your docs:
+SSH-Docs is designed primarily for AI coding agents. When you start a server, it automatically generates three integration files at the documentation root:
 
-- **AGENTS.md** - Quick reference commands for accessing your documentation
-- **SETUP.md** - Detailed setup instructions for different agent systems
+- **AGENTS.md** - Quick reference commands for agents to access your docs
+- **SETUP.md** - Detailed setup instructions for different agent systems  
 - **SKILL.md** - Skill definition for skill-based agent frameworks
 
-These files are available immediately when you start the server:
+### Quick Start for Agents
 
 ```bash
-# Start server
+# 1. Start server (public auth recommended for agents)
 ssh-docs serve ./docs --auth public --site-name "My Project"
 
-# Agents can read integration instructions
-ssh localhost -p 2222
-/docs$ cat AGENTS.md
-/docs$ cat SETUP.md
-/docs$ cat SKILL.md
-```
+# 2. Agents can immediately read integration instructions
+ssh localhost -p 2222 'cat AGENTS.md'
 
-Agents can then add your docs to their project configuration:
-
-```bash
-# Append to project's AGENTS.md
+# 3. Add to your project's agent configuration
 ssh localhost -p 2222 'cat AGENTS.md' >> AGENTS.md
 
-# Or install as a skill
+# 4. Or install as a skill
 mkdir -p .agents/skills/my-project-docs
 ssh localhost -p 2222 'cat SKILL.md' > .agents/skills/my-project-docs/SKILL.md
 ```
 
-This pattern is inspired by [Supabase's approach](https://supabase.com) to exposing documentation to AI agents. See [AGENT_INTEGRATION.md](AGENT_INTEGRATION.md) for detailed documentation.
+### Production Deployment for Agents
+
+For production use with a public hostname:
+
+```bash
+# Deploy with custom hostname for agent instructions
+ssh-docs serve ./docs \
+  --hostname docs.example.com \
+  --port 22 \
+  --auth key \
+  --keys-file ~/.ssh/authorized_keys
+```
+
+The `--hostname` option sets the public address that appears in agent instructions (AGENTS.md, SETUP.md, SKILL.md), while the server binds to the interface specified by `--host` (default: `127.0.0.1`).
+
+**Example:** If you deploy on a server with domain `docs.example.com` but bind to all interfaces (`--host 0.0.0.0`), use `--hostname docs.example.com` so agents get the correct connection command:
+
+```bash
+ssh docs.example.com 'grep -rl "auth" /docs'
+```
+
+See [AGENT_INTEGRATION.md](AGENT_INTEGRATION.md) for detailed documentation and examples.
 
 ## Installation
 
@@ -66,7 +85,7 @@ pip install ssh-docs
 
 ### No-Auth Mode (Recommended for Agents)
 
-The simplest way to start is with public (no-auth) mode, which is ideal for AI coding agents and local development:
+Public (no-auth) mode is the recommended setup for AI coding agents and local development:
 
 ```bash
 # Serve with no authentication required
@@ -76,17 +95,22 @@ ssh-docs serve ./docs --auth public
 ssh-docs serve --auth public
 ```
 
-Then connect without any credentials:
+Agents can then connect without credentials:
 
 ```bash
+# Direct connection
 ssh localhost -p 2222
+
+# Or execute commands directly
+ssh localhost -p 2222 'grep -rl "authentication" /docs'
+ssh localhost -p 2222 'cat /docs/guides/getting-started.md'
 ```
 
-This mode is perfect for:
-- AI coding agents that need to browse documentation
-- Local development and testing
-- Internal networks where authentication isn't required
-- Quick documentation sharing
+**Why no-auth for agents?**
+- Agents can access docs without credential management
+- Simpler integration into agent workflows
+- Ideal for local development and internal networks
+- Can be combined with network-level security (firewall, VPN)
 
 ### Basic Usage
 
@@ -140,12 +164,17 @@ Start the SSH documentation server.
 - `CONTENT_DIR` — directory to serve
 
 **Options:**
-- `-p, --port` — port to listen on
-- `-n, --site-name` — site name shown in the shell/banner context
+- `-p, --port` — port to listen on (default: 2222)
+- `-n, --site-name` — site name shown in shell/banner and agent instructions
 - `-c, --config` — path to a config file
-- `--host` — host to bind to (e.g., `0.0.0.0`, `127.0.0.1`)
-- `--hostname` — public hostname for agent instructions (e.g., `docs.example.com`, `localhost`)
-- `--auth` — authentication mode: `public`, `key`, or `password`
+- `--host` — network interface to bind to (default: `127.0.0.1`)
+  - Use `0.0.0.0` to bind to all interfaces
+  - Use `127.0.0.1` for localhost only
+- `--hostname` — public hostname for agent instructions (default: `localhost`)
+  - This is the address agents will use to connect
+  - Example: `docs.example.com`, `my-server.local`, `192.168.1.100`
+  - Appears in generated AGENTS.md, SETUP.md, and SKILL.md files
+- `--auth` — authentication mode: `public`, `key`, or `password` (default: `public`)
 - `--keys-file` — authorized keys file for key authentication
 - `--password` — password for password authentication
 - `--no-config` — ignore `.ssh-docs.yml`
@@ -154,13 +183,30 @@ Start the SSH documentation server.
 **Examples:**
 
 ```bash
+# Local development (default)
 ssh-docs serve ./docs
-ssh-docs serve ./docs --port 3000 --site-name "My API Docs"
-ssh-docs serve --auth password --password secret123
-ssh-docs serve --config production.yml
 
-# Public deployment with custom hostname
-ssh-docs serve ./docs --hostname docs.example.com --port 22
+# Custom port and site name
+ssh-docs serve ./docs --port 3000 --site-name "My API Docs"
+
+# Public deployment with custom hostname for agents
+ssh-docs serve ./docs \
+  --host 0.0.0.0 \
+  --hostname docs.example.com \
+  --port 22 \
+  --auth key
+
+# Internal network with IP address
+ssh-docs serve ./docs \
+  --host 0.0.0.0 \
+  --hostname 192.168.1.100 \
+  --port 2222
+
+# Password-protected
+ssh-docs serve --auth password --password secret123
+
+# Using config file
+ssh-docs serve --config production.yml
 ```
 
 ### `ssh-docs init`
@@ -229,8 +275,8 @@ Example:
 site_name: "My Project Documentation"
 content_root: "./docs"
 port: 2222
-host: "0.0.0.0"
-hostname: "localhost"  # Public hostname for agent instructions
+host: "0.0.0.0"  # Bind to all network interfaces
+hostname: "docs.example.com"  # Public hostname for agent instructions
 
 auth:
   type: "public" # public, key, password

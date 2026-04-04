@@ -154,22 +154,66 @@ ssh supabase.sh grep -rl 'auth' /supabase/docs/
 ssh your-docs.example.com grep -rl 'auth' /docs
 ```
 
-## Production Deployment
+## Production Deployment for Agents
 
-For production use:
+For production deployment where AI agents will access your documentation:
 
-1. **Use a custom domain**: `ssh docs.yourproject.com`
-2. **Set public hostname**: Use `--hostname` or `hostname` in config
-3. **Enable authentication**: Use `--auth key` or `--auth password`
-4. **Configure via YAML**: Create `.ssh-docs.yml` with your settings
+### 1. Deploy with Public Hostname
 
-Example production config:
+```bash
+ssh-docs serve ./docs \
+  --host 0.0.0.0 \
+  --hostname docs.yourproject.com \
+  --port 22 \
+  --auth key \
+  --keys-file ~/.ssh/authorized_keys
+```
+
+### 2. Understanding `--host` vs `--hostname`
+
+These two options serve different purposes:
+
+| Option | Purpose | Example | Used For |
+|--------|---------|---------|----------|
+| `--host` | Network interface to bind to | `0.0.0.0`, `127.0.0.1` | Server binding |
+| `--hostname` | Public address for agents | `docs.example.com`, `192.168.1.100` | Agent instructions |
+
+**Why separate them?**
+- `--host` controls which network interface the server listens on
+  - `127.0.0.1` = localhost only (default)
+  - `0.0.0.0` = all network interfaces
+- `--hostname` sets the address that appears in agent instructions (AGENTS.md, SETUP.md, SKILL.md)
+  - This is what agents will use to connect
+  - Can be a domain name, IP address, or hostname
+
+**Example scenarios:**
+
+```bash
+# Local development (agents connect to localhost)
+ssh-docs serve ./docs
+# Binds to: 127.0.0.1:2222
+# Agent instructions use: localhost:2222
+
+# Internal network (agents connect via IP)
+ssh-docs serve ./docs --host 0.0.0.0 --hostname 192.168.1.100
+# Binds to: 0.0.0.0:2222 (all interfaces)
+# Agent instructions use: 192.168.1.100:2222
+
+# Public deployment (agents connect via domain)
+ssh-docs serve ./docs --host 0.0.0.0 --hostname docs.example.com --port 22
+# Binds to: 0.0.0.0:22 (all interfaces)
+# Agent instructions use: docs.example.com
+```
+
+### 3. Production Configuration File
+
+Create `.ssh-docs.yml`:
 
 ```yaml
 site_name: "My Project Documentation"
 content_root: "./docs"
 port: 22
-host: "0.0.0.0"
+host: "0.0.0.0"  # Bind to all network interfaces
 hostname: "docs.yourproject.com"  # Public hostname for agent instructions
 
 auth:
@@ -180,13 +224,40 @@ server:
   banner: |
     Welcome to My Project Documentation
     Type 'help' for available commands
+  max_connections: 50
+  timeout: 600
+
+rate_limiting:
+  enabled: true
+  max_connections_per_ip: 10
+  max_connections_per_minute: 30
 ```
 
-**Why separate `host` and `hostname`?**
-- `host`: Network interface to bind to (e.g., `0.0.0.0` for all interfaces)
-- `hostname`: Public address agents use to connect (e.g., `docs.example.com`)
+Then start with:
 
-This allows you to bind to all interfaces internally while providing the correct public address in agent instructions.
+```bash
+ssh-docs serve --config .ssh-docs.yml
+```
+
+### 4. Agent Instructions Will Use Your Hostname
+
+With `--hostname docs.yourproject.com`, the generated AGENTS.md will contain:
+
+```bash
+# Search for a topic
+ssh docs.yourproject.com grep -rl 'auth' /docs
+
+# Read a specific guide
+ssh docs.yourproject.com cat /docs/guides/getting-started.md
+```
+
+Instead of:
+
+```bash
+ssh localhost -p 2222 grep -rl 'auth' /docs
+```
+
+This ensures agents have the correct connection information regardless of where they run.
 
 ## Benefits
 
