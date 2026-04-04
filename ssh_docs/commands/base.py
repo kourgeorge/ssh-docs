@@ -79,7 +79,7 @@ class ShellContext:
         content_root: Path,
         site_name: str,
         filesystem: Optional[FileSystemService] = None,
-        cwd: str = "/site",
+        cwd: str = "/",
     ) -> None:
         """Initialize shell context.
         

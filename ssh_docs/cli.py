@@ -74,6 +74,12 @@ def cli() -> None:
     help="Host to bind to [default: 0.0.0.0]",
 )
 @click.option(
+    "--hostname",
+    type=str,
+    default=None,
+    help="Public hostname for agent instructions [default: localhost]",
+)
+@click.option(
     "--auth",
     type=click.Choice(["public", "key", "password"]),
     default=None,
@@ -108,6 +114,7 @@ def serve(
     site_name: Optional[str],
     config: Optional[str],
     host: Optional[str],
+    hostname: Optional[str],
     auth: Optional[str],
     keys_file: Optional[str],
     password: Optional[str],
@@ -168,6 +175,9 @@ def serve(
     
     if host:
         cfg.host = host
+    
+    if hostname:
+        cfg.hostname = hostname
     
     if auth:
         cfg.auth_type = auth

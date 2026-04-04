@@ -25,6 +25,10 @@ class Config:
         self.port: int = data.get("port", 2222)
         self.host: str = data.get("host", "0.0.0.0")
         
+        # Public hostname for agent instructions (separate from bind host)
+        # Defaults to "localhost" but can be set to public hostname/IP
+        self.hostname: str = data.get("hostname", "localhost")
+        
         # Authentication
         auth_data = data.get("auth", {})
         self.auth_type: str = auth_data.get("type", "public")

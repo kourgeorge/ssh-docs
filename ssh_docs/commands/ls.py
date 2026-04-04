@@ -20,6 +20,16 @@ class LsCommand(BaseCommand):
             args[0] if args else None,
             self.context.cwd
         )
+        
+        # Handle root directory listing
+        if virtual_path == "/":
+            # List virtual files at root
+            for filename in ["AGENTS.md", "SETUP.md", "SKILL.md"]:
+                self.write_output(f"{filename}\n")
+            # Also list docs directory
+            self.write_output("docs\n")
+            return
+        
         real_path = resolver.to_real_path(virtual_path)
         
         if virtual_path == "/invalid" or real_path is None or not real_path.exists():
@@ -30,8 +40,12 @@ class LsCommand(BaseCommand):
             self.write_output(f"{real_path.name}\n")
             return
         
-        for child in sorted(
-            real_path.iterdir(),
-            key=lambda p: (not p.is_dir(), p.name.lower())
-        ):
-            self.write_output(f"{child.name}\n")
+        # Use filesystem service to list directory (includes virtual files at content root)
+        try:
+            for child in sorted(
+                self.context.filesystem.list_dir(real_path),
+                key=lambda p: (not self.context.filesystem.is_dir(p), p.name.lower())
+            ):
+                self.write_output(f"{child.name}\n")
+        except (PermissionError, OSError) as e:
+            self.write_output(f"ls: cannot access: {e}\n")

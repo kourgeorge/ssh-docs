@@ -20,7 +20,8 @@ from .commands import (
     ShellContext,
     TailCommand,
 )
-from .filesystem import FileSystemService, LocalFileSystem
+from .filesystem import FileSystemService, LocalFileSystem, VirtualFileSystem
+from .templates import generate_agent_files
 
 
 class SSHDocsShell:
@@ -40,6 +41,8 @@ class SSHDocsShell:
         site_name: str,
         banner: Optional[str] = None,
         filesystem: Optional[FileSystemService] = None,
+        ssh_host: str = "localhost",
+        ssh_port: int = 2222,
     ) -> None:
         """Initialize the SSH-Docs shell.
         
@@ -51,6 +54,8 @@ class SSHDocsShell:
             site_name: Name of the documentation site
             banner: Optional custom banner message
             filesystem: File system service (defaults to LocalFileSystem)
+            ssh_host: SSH hostname for agent instructions
+            ssh_port: SSH port for agent instructions
         """
         self.input_queue = input_queue
         self.stdout = stdout
@@ -58,7 +63,18 @@ class SSHDocsShell:
         self.content_root = content_root.resolve()
         self.site_name = site_name
         self.banner = banner or self._default_banner()
-        self.filesystem = filesystem or LocalFileSystem()
+        
+        # Generate agent integration files
+        agent_files = generate_agent_files(
+            site_name=site_name,
+            ssh_host=ssh_host,
+            ssh_port=ssh_port,
+            docs_path="/docs"
+        )
+        
+        # Wrap filesystem with virtual files at root
+        base_fs = filesystem or LocalFileSystem()
+        self.filesystem = VirtualFileSystem(base_fs, agent_files, content_root)
         
         # Initialize shell context with filesystem
         self.context = ShellContext(
@@ -100,7 +116,10 @@ Docs-over-SSH lets your agent browse SSH-Docs documentation directly using bash.
 
 Connected to {self.site_name}.ssh-docs
 Source root: {self.content_root}
-Mounted content: /site
+
+Virtual files at root: AGENTS.md, SETUP.md, SKILL.md
+Documentation: /docs
+
 Supported commands: pwd, ls, cd, cat, head, tail, find, grep, help, exit
 Readonly session
 
@@ -282,7 +301,7 @@ Readonly session
                 dir_part = prefix.rsplit('/', 1)[0] or '/'
                 file_part = prefix.rsplit('/', 1)[1]
             else:
-                dir_part = '/site'
+                dir_part = '/docs'
                 file_part = prefix[1:] if len(prefix) > 1 else ''
             virtual_path = dir_part
         else:

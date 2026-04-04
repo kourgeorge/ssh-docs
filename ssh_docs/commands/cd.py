@@ -17,9 +17,15 @@ class CdCommand(BaseCommand):
         resolver = PathResolver(self.context.content_root)
         
         virtual_path = resolver.resolve_virtual_path(
-            args[0] if args else "/site",
+            args[0] if args else "/docs",
             self.context.cwd
         )
+        
+        # Allow cd to root /
+        if virtual_path == "/":
+            self.context.cwd = "/"
+            return
+        
         real_path = resolver.to_real_path(virtual_path)
         
         if virtual_path == "/invalid" or real_path is None or not real_path.exists():

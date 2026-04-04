@@ -20,6 +20,41 @@ This generalizes the docs-over-SSH approach: instead of asking an agent to rely 
 - Built-in shell completion generation for Bash, Zsh, and Fish
 - Basic rate limiting controls in configuration
 - Automatic site-name detection from `pyproject.toml`, `package.json`, or the current directory
+- **Automatic agent integration files** - Generates AGENTS.md, SETUP.md, and SKILL.md at the root for AI coding agents
+
+## Agent Integration
+
+SSH-Docs automatically generates three files at the documentation root to help AI coding agents discover and use your docs:
+
+- **AGENTS.md** - Quick reference commands for accessing your documentation
+- **SETUP.md** - Detailed setup instructions for different agent systems
+- **SKILL.md** - Skill definition for skill-based agent frameworks
+
+These files are available immediately when you start the server:
+
+```bash
+# Start server
+ssh-docs serve ./docs --auth public --site-name "My Project"
+
+# Agents can read integration instructions
+ssh localhost -p 2222
+/docs$ cat AGENTS.md
+/docs$ cat SETUP.md
+/docs$ cat SKILL.md
+```
+
+Agents can then add your docs to their project configuration:
+
+```bash
+# Append to project's AGENTS.md
+ssh localhost -p 2222 'cat AGENTS.md' >> AGENTS.md
+
+# Or install as a skill
+mkdir -p .agents/skills/my-project-docs
+ssh localhost -p 2222 'cat SKILL.md' > .agents/skills/my-project-docs/SKILL.md
+```
+
+This pattern is inspired by [Supabase's approach](https://supabase.com) to exposing documentation to AI agents. See [AGENT_INTEGRATION.md](AGENT_INTEGRATION.md) for detailed documentation.
 
 ## Installation
 
@@ -83,16 +118,16 @@ pwd, ls, cd, cat, head, tail, find, grep, help, exit
 Example session:
 
 ```bash
-/site$ ls
-/site$ cd guides
-/site$ cat getting-started.md
-/site$ grep -R "authentication" .
-/site$ find . -name "*.md"
-/site$ head -n 20 README.md
-/site$ tail -n 10 changelog.txt
-/site$ pwd
-/site$ help
-/site$ exit
+/docs$ ls
+/docs$ cd guides
+/docs$ cat getting-started.md
+/docs$ grep -R "authentication" .
+/docs$ find . -name "*.md"
+/docs$ head -n 20 README.md
+/docs$ tail -n 10 changelog.txt
+/docs$ pwd
+/docs$ help
+/docs$ exit
 ```
 
 ## CLI Commands
@@ -108,7 +143,8 @@ Start the SSH documentation server.
 - `-p, --port` — port to listen on
 - `-n, --site-name` — site name shown in the shell/banner context
 - `-c, --config` — path to a config file
-- `--host` — host to bind to
+- `--host` — host to bind to (e.g., `0.0.0.0`, `127.0.0.1`)
+- `--hostname` — public hostname for agent instructions (e.g., `docs.example.com`, `localhost`)
 - `--auth` — authentication mode: `public`, `key`, or `password`
 - `--keys-file` — authorized keys file for key authentication
 - `--password` — password for password authentication
@@ -122,6 +158,9 @@ ssh-docs serve ./docs
 ssh-docs serve ./docs --port 3000 --site-name "My API Docs"
 ssh-docs serve --auth password --password secret123
 ssh-docs serve --config production.yml
+
+# Public deployment with custom hostname
+ssh-docs serve ./docs --hostname docs.example.com --port 22
 ```
 
 ### `ssh-docs init`
@@ -191,6 +230,7 @@ site_name: "My Project Documentation"
 content_root: "./docs"
 port: 2222
 host: "0.0.0.0"
+hostname: "localhost"  # Public hostname for agent instructions
 
 auth:
   type: "public" # public, key, password

@@ -36,6 +36,8 @@ class SSHDocsServer:
             content_root=self.content_root,
             site_name=self.config.site_name,
             banner=self.config.banner,
+            ssh_host=self.config.hostname,
+            ssh_port=self.config.port,
         )
         
         # Initialize rate limiter if enabled
@@ -250,7 +252,83 @@ class SSHDocsServerProtocol(asyncssh.SSHServer):
     
     def session_requested(self):
         """Handle session request by returning a session handler."""
+        # Return a session that can handle both shell and exec requests
         return SSHDocsSession(self.server, self.server.shell_factory)
+
+
+class SSHDocsExecSession(asyncssh.SSHServerSession):
+    """SSH session handler for exec (non-interactive) commands."""
+    
+    def __init__(self, server: SSHDocsServer, shell_factory: DefaultShellFactory, command: str) -> None:
+        self.server = server
+        self.shell_factory = shell_factory
+        self.command = command
+        self._chan = None
+    
+    def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
+        """Called when the session channel is opened."""
+        self._chan = chan
+        logger.info(f"Exec session connection made for command: {self.command}")
+    
+    def session_started(self) -> None:
+        """Called when the session is ready to start."""
+        logger.info(f"Exec session started for command: {self.command}")
+        # Execute command immediately
+        asyncio.create_task(self._execute_command())
+    
+    async def _execute_command(self) -> None:
+        """Execute the command and close the channel."""
+        logger.info(f"Starting command execution: {self.command}")
+        try:
+            # Create a temporary shell to execute the command
+            input_queue = asyncio.Queue()
+            logger.debug("Creating shell for exec command")
+            shell = self.shell_factory.create_shell(
+                input_queue=input_queue,
+                stdout=self._chan,
+                stderr=self._chan,
+            )
+            logger.debug("Shell created successfully")
+            
+            # Parse and execute the command
+            import shlex
+            try:
+                parts = shlex.split(self.command)
+                logger.debug(f"Parsed command parts: {parts}")
+            except ValueError as e:
+                logger.error(f"Command parse error: {e}")
+                self._chan.write(f"parse error: {e}\n")
+                self._chan.exit(1)
+                return
+            
+            if not parts:
+                logger.debug("Empty command, exiting with success")
+                self._chan.exit(0)
+                return
+            
+            cmd = parts[0]
+            args = parts[1:]
+            logger.info(f"Executing command: {cmd} with args: {args}")
+            
+            # Execute the command using the shell's registry
+            executed = await shell.registry.execute(cmd, args, shell.context)
+            logger.info(f"Command execution result: {executed}")
+            
+            if not executed:
+                logger.warning(f"Command not found: {cmd}")
+                self._chan.write(f"unsupported command: {cmd}\n")
+                self._chan.exit(1)
+            else:
+                logger.info("Command executed successfully")
+                self._chan.exit(0)
+                
+        except Exception as e:
+            logger.error(f"Exec command error: {e}", exc_info=True)
+            self._chan.write(f"error: {e}\n")
+            self._chan.exit(1)
+        finally:
+            logger.debug("Closing exec channel")
+            self._chan.close()
 
 
 class SSHDocsSession(asyncssh.SSHServerSession):
@@ -264,6 +342,8 @@ class SSHDocsSession(asyncssh.SSHServerSession):
         self._term_type = None
         self._term_size = (80, 24, 0, 0)
         self._input_queue = asyncio.Queue()
+        self._is_exec = False
+        self._exec_command = None
     
     def connection_made(self, chan: asyncssh.SSHServerChannel) -> None:
         """Called when the session channel is opened."""
@@ -281,6 +361,14 @@ class SSHDocsSession(asyncssh.SSHServerSession):
     def shell_requested(self) -> bool:
         """Handle shell request - return True to accept."""
         logger.info("Shell requested")
+        self._is_exec = False
+        return True
+    
+    def exec_requested(self, command: str) -> bool:
+        """Handle exec request for non-interactive commands."""
+        logger.info(f"Exec request received for command: {command}")
+        self._is_exec = True
+        self._exec_command = command
         return True
     
     def terminal_size_changed(self, width: int, height: int, pixwidth: int, pixheight: int) -> None:
@@ -303,14 +391,73 @@ class SSHDocsSession(asyncssh.SSHServerSession):
     
     def session_started(self) -> None:
         """Called when the session is ready to start."""
-        logger.info("Session started, creating shell")
-        self._shell = self.shell_factory.create_shell(
-            input_queue=self._input_queue,
-            stdout=self._chan,
-            stderr=self._chan,
-        )
-        # Start the shell in the background
-        asyncio.create_task(self._run_shell())
+        if self._is_exec:
+            logger.info(f"Session started for exec command: {self._exec_command}")
+            # Handle exec command
+            asyncio.create_task(self._run_exec_command())
+        else:
+            logger.info("Session started, creating interactive shell")
+            self._shell = self.shell_factory.create_shell(
+                input_queue=self._input_queue,
+                stdout=self._chan,
+                stderr=self._chan,
+            )
+            # Start the shell in the background
+            asyncio.create_task(self._run_shell())
+    
+    async def _run_exec_command(self) -> None:
+        """Execute a single command and close the session."""
+        try:
+            logger.info(f"Executing command: {self._exec_command}")
+            
+            # Create a temporary shell to execute the command
+            input_queue = asyncio.Queue()
+            shell = self.shell_factory.create_shell(
+                input_queue=input_queue,
+                stdout=self._chan,
+                stderr=self._chan,
+            )
+            
+            # Parse and execute the command
+            import shlex
+            try:
+                parts = shlex.split(self._exec_command)
+                logger.debug(f"Parsed command parts: {parts}")
+            except ValueError as e:
+                logger.error(f"Command parse error: {e}")
+                self._chan.write(f"parse error: {e}\n")
+                self._chan.exit(1)
+                return
+            
+            if not parts:
+                logger.debug("Empty command, exiting with success")
+                self._chan.exit(0)
+                return
+            
+            cmd = parts[0]
+            args = parts[1:]
+            logger.info(f"Executing: {cmd} with args: {args}")
+            
+            # Execute the command using the shell's registry
+            executed = await shell.registry.execute(cmd, args, shell.context)
+            logger.info(f"Command execution result: {executed}")
+            
+            if not executed:
+                logger.warning(f"Command not found: {cmd}")
+                self._chan.write(f"unsupported command: {cmd}\n")
+                self._chan.exit(1)
+            else:
+                logger.info("Command executed successfully")
+                self._chan.exit(0)
+                
+        except Exception as e:
+            logger.error(f"Exec command error: {e}", exc_info=True)
+            self._chan.write(f"error: {e}\n")
+            self._chan.exit(1)
+        finally:
+            logger.debug("Closing exec channel")
+            if self._chan:
+                self._chan.close()
     
     async def _run_shell(self) -> None:
         """Run the shell session."""

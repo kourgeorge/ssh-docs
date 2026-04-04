@@ -51,6 +51,8 @@ class DefaultShellFactory:
         site_name: str,
         banner: Optional[str] = None,
         filesystem: Optional[FileSystemService] = None,
+        ssh_host: str = "localhost",
+        ssh_port: int = 2222,
     ) -> None:
         """Initialize shell factory.
         
@@ -59,11 +61,15 @@ class DefaultShellFactory:
             site_name: Name of the documentation site
             banner: Optional custom banner message
             filesystem: File system service (defaults to LocalFileSystem)
+            ssh_host: SSH hostname for agent instructions
+            ssh_port: SSH port for agent instructions
         """
         self.content_root = content_root
         self.site_name = site_name
         self.banner = banner
         self.filesystem = filesystem or LocalFileSystem()
+        self.ssh_host = ssh_host
+        self.ssh_port = ssh_port
     
     def create_shell(
         self,
@@ -91,4 +97,6 @@ class DefaultShellFactory:
             site_name=self.site_name,
             banner=self.banner,
             filesystem=self.filesystem,
+            ssh_host=self.ssh_host,
+            ssh_port=self.ssh_port,
         )

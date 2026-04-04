@@ -1,6 +1,6 @@
 """Path resolution utilities for SSH-Docs shell.
 
-Provides secure path resolution between virtual paths (/site/...) and
+Provides secure path resolution between virtual paths (/docs/...) and
 real filesystem paths, with security checks to prevent directory traversal.
 """
 
@@ -30,7 +30,7 @@ class PathResolver:
             cwd: Current working directory (virtual path)
             
         Returns:
-            Normalized virtual path starting with /site
+            Normalized virtual path starting with / or /docs
         """
         if not value:
             return cwd
@@ -38,7 +38,16 @@ class PathResolver:
         candidate = value if value.startswith("/") else str(Path(cwd) / value)
         normalized = os.path.normpath(candidate).replace("\\", "/")
         
-        if not normalized.startswith("/site"):
+        # Allow root directory
+        if normalized == "/":
+            return "/"
+        
+        # Allow root-level files (for virtual files like AGENTS.md, SETUP.md, SKILL.md)
+        if normalized.startswith("/") and "/" not in normalized[1:]:
+            return normalized
+        
+        # Must start with /docs for content paths
+        if not normalized.startswith("/docs"):
             return "/invalid"
         
         return normalized
@@ -47,20 +56,20 @@ class PathResolver:
         """Convert virtual path to real filesystem path with security checks.
         
         Performs multiple security validations:
-        1. Ensures path starts with /site prefix
+        1. Ensures path starts with /docs prefix
         2. Resolves symlinks and checks final target is within content_root
         3. Validates that symlinks don't escape the content root
         
         Args:
-            virtual_path: Virtual path starting with /site
+            virtual_path: Virtual path starting with /docs
             
         Returns:
             Real filesystem path if valid, None if security check fails
         """
-        if not virtual_path.startswith("/site"):
+        if not virtual_path.startswith("/docs"):
             return None
         
-        rel = virtual_path.removeprefix("/site").lstrip("/")
+        rel = virtual_path.removeprefix("/docs").lstrip("/")
         candidate = self.content_root / rel
         
         # Check if the path itself (before resolving) tries to escape
@@ -94,8 +103,8 @@ class PathResolver:
             path: Real filesystem path
             
         Returns:
-            Virtual path starting with /site
+            Virtual path starting with /docs
         """
         rel = path.relative_to(self.content_root)
         rel_str = str(rel).replace("\\", "/")
-        return "/site" if rel_str == "." else f"/site/{rel_str}"
+        return "/docs" if rel_str == "." else f"/docs/{rel_str}"

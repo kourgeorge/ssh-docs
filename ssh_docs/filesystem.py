@@ -106,6 +106,70 @@ class FileSystemService(ABC):
         pass
 
 
+class VirtualFileSystem(FileSystemService):
+    """Virtual file system with injected files.
+    
+    Wraps a real filesystem but adds virtual files at the root level.
+    Used to inject AGENTS.md, SETUP.md, and SKILL.md files.
+    """
+    
+    def __init__(self, backend: FileSystemService, virtual_files: dict[str, str], content_root: Path) -> None:
+        """Initialize virtual file system.
+        
+        Args:
+            backend: Underlying file system service
+            virtual_files: Dict mapping virtual filenames to their content
+            content_root: The content root directory path
+        """
+        self.backend = backend
+        self.virtual_files = virtual_files
+        self.content_root = content_root.resolve()
+    
+    def _is_virtual_file(self, path: Path) -> bool:
+        """Check if path refers to a virtual file at content root."""
+        return path.name in self.virtual_files and path.parent == self.content_root
+    
+    def exists(self, path: Path) -> bool:
+        """Check if a path exists (including virtual files)."""
+        if self._is_virtual_file(path):
+            return True
+        return self.backend.exists(path)
+    
+    def is_file(self, path: Path) -> bool:
+        """Check if path is a file (including virtual files)."""
+        if self._is_virtual_file(path):
+            return True
+        return self.backend.is_file(path)
+    
+    def is_dir(self, path: Path) -> bool:
+        """Check if path is a directory."""
+        if self._is_virtual_file(path):
+            return False
+        return self.backend.is_dir(path)
+    
+    def read_text(self, path: Path, encoding: str = "utf-8") -> str:
+        """Read text content from a file (including virtual files)."""
+        if self._is_virtual_file(path):
+            return self.virtual_files[path.name]
+        return self.backend.read_text(path, encoding)
+    
+    def list_dir(self, path: Path) -> Iterator[Path]:
+        """List directory contents (including virtual files at root)."""
+        items = list(self.backend.list_dir(path))
+        
+        # Add virtual files if listing content root directory
+        if path.resolve() == self.content_root:
+            for filename in self.virtual_files.keys():
+                virtual_path = path / filename
+                items.append(virtual_path)
+        
+        return iter(items)
+    
+    def glob(self, path: Path, pattern: str) -> Iterator[Path]:
+        """Find files matching a glob pattern."""
+        return self.backend.glob(path, pattern)
+
+
 class LocalFileSystem(FileSystemService):
     """Local file system implementation.
     
