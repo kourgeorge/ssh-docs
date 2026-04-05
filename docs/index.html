@@ -230,6 +230,97 @@
       padding: 0;
     }
 
+    .anim-shell {
+      margin-top: 0.8rem;
+      background: var(--terminal);
+      color: var(--terminal-text);
+      border: 1px solid var(--terminal-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .anim-top {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.55rem 0.75rem;
+      background: #18242b;
+      border-bottom: 1px solid var(--terminal-border);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      display: inline-block;
+    }
+
+    .dot.red {
+      background: #ef4444;
+    }
+
+    .dot.yellow {
+      background: #f59e0b;
+    }
+
+    .dot.green {
+      background: #22c55e;
+    }
+
+    .anim-body {
+      padding: 0.9rem;
+      overflow-x: auto;
+    }
+
+    .anim-output {
+      font-family: "JetBrains Mono", "Consolas", monospace;
+      font-size: 0.89rem;
+      line-height: 1.6;
+      white-space: pre;
+      margin: 0;
+    }
+
+    .caret {
+      animation: blink 1s step-end infinite;
+    }
+
+    .facts-grid {
+      margin-top: 0.9rem;
+      display: grid;
+      gap: 0.7rem;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .fact {
+      background: #f7faf9;
+      border: 1px solid #d4e0dc;
+      border-radius: 10px;
+      padding: 0.75rem;
+      font-size: 0.94rem;
+    }
+
+    .fact-label {
+      font-weight: 800;
+      color: #12403f;
+      margin-bottom: 0.2rem;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .fact-value {
+      color: var(--muted);
+      font-family: "JetBrains Mono", "Consolas", monospace;
+      font-size: 0.86rem;
+      word-break: break-word;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0;
+      }
+    }
+
     code {
       font-family: "JetBrains Mono", "Consolas", monospace;
       font-size: 0.92em;
@@ -277,6 +368,10 @@
       .grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+
+      .facts-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     @media (max-width: 680px) {
@@ -295,6 +390,10 @@
 
       .lead {
         font-size: 1rem;
+      }
+
+      .anim-output {
+        font-size: 0.82rem;
       }
     }
   </style>
@@ -351,6 +450,35 @@ $ grep -R "authentication" /docs
       </section>
 
       <section class="panel">
+        <h2>Live Agent Session</h2>
+        <p>Animated example: an agent connects over SSH, navigates docs, and extracts concrete facts for its final answer.</p>
+        <div class="anim-shell" aria-live="polite">
+          <div class="anim-top">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <div class="anim-body">
+            <pre class="anim-output" id="agent-terminal"></pre>
+          </div>
+        </div>
+        <div class="facts-grid" id="extracted-facts">
+          <article class="fact">
+            <div class="fact-label">Authentication</div>
+            <div class="fact-value" data-fact="auth">Waiting for extraction...</div>
+          </article>
+          <article class="fact">
+            <div class="fact-label">Endpoints</div>
+            <div class="fact-value" data-fact="endpoints">Waiting for extraction...</div>
+          </article>
+          <article class="fact">
+            <div class="fact-label">Evidence Path</div>
+            <div class="fact-value" data-fact="path">Waiting for extraction...</div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
         <h2>Typical Agent Workflow</h2>
         <div class="grid">
           <article class="card">
@@ -396,5 +524,89 @@ $ grep -R "authentication" /docs
       Built for terminal-first developers and AI coding agents.
     </footer>
   </div>
+  <script>
+    (function () {
+      var terminal = document.getElementById("agent-terminal");
+      if (!terminal) return;
+
+      var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var facts = {
+        auth: document.querySelector('[data-fact="auth"]'),
+        endpoints: document.querySelector('[data-fact="endpoints"]'),
+        path: document.querySelector('[data-fact="path"]')
+      };
+
+      var steps = [
+        { line: "$ ssh localhost -p 2222", wait: 480 },
+        { line: "/docs$ ls", wait: 350 },
+        { line: "AGENTS.md  README.md  docs/  guides/", wait: 450 },
+        { line: "/docs$ cd docs", wait: 320 },
+        { line: "/docs/docs$ grep -n \"Authentication\\|GET /v1/projects\" api.md", wait: 450 },
+        { line: "8:## Authentication", wait: 300 },
+        { line: "15:- `GET /v1/projects`: list projects with owner and status", wait: 520 },
+        { line: "/docs/docs$ cat api.md | head -n 24", wait: 380 },
+        { line: "Use bearer tokens for all API requests.", wait: 350 },
+        { line: "/docs/docs$ # extracted summary ready", wait: 650 }
+      ];
+
+      function setFacts() {
+        if (facts.auth) facts.auth.textContent = "Bearer tokens required";
+        if (facts.endpoints) facts.endpoints.textContent = "GET /v1/projects";
+        if (facts.path) facts.path.textContent = "/docs/docs/api.md";
+      }
+
+      function typeLine(text, speed, done) {
+        var i = 0;
+        var current = "";
+        function tick() {
+          if (i < text.length) {
+            current += text.charAt(i++);
+            terminal.textContent = terminal.textContent + text.charAt(i - 1);
+            setTimeout(tick, speed);
+            return;
+          }
+          terminal.textContent += "\n";
+          done();
+        }
+        tick();
+      }
+
+      if (reduceMotion) {
+        terminal.textContent = steps.map(function (s) { return s.line; }).join("\n");
+        setFacts();
+        return;
+      }
+
+      function run(index) {
+        if (index === 0) {
+          terminal.textContent = "";
+          if (facts.auth) facts.auth.textContent = "Waiting for extraction...";
+          if (facts.endpoints) facts.endpoints.textContent = "Waiting for extraction...";
+          if (facts.path) facts.path.textContent = "Waiting for extraction...";
+        }
+
+        if (index >= steps.length) {
+          setFacts();
+          terminal.textContent += "$ ";
+          var cursor = document.createElement("span");
+          cursor.className = "caret";
+          cursor.textContent = "_";
+          terminal.appendChild(cursor);
+          setTimeout(function () {
+            run(0);
+          }, 1800);
+          return;
+        }
+
+        typeLine(steps[index].line, 22, function () {
+          setTimeout(function () {
+            run(index + 1);
+          }, steps[index].wait);
+        });
+      }
+
+      run(0);
+    })();
+  </script>
 </body>
 </html>
