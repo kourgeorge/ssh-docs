@@ -280,6 +280,26 @@
       margin: 0;
     }
 
+    .agent-note {
+      margin-top: 0.7rem;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .anim-shell.agent-coding {
+      border-color: #3f2f16;
+      background: #1d1409;
+    }
+
+    .agent-coding .anim-top {
+      background: #2a1d0d;
+      border-bottom-color: #4a3415;
+    }
+
+    .agent-coding .anim-output {
+      color: #f8e7ca;
+    }
+
     .caret {
       animation: blink 1s step-end infinite;
     }
@@ -479,6 +499,22 @@ $ grep -R "authentication" /docs
       </section>
 
       <section class="panel">
+        <h2>Coding Agent Exploration Replay</h2>
+        <p>Alternative animation (Claude Code style): scan docs, open the right file, then extract answer-ready details with source path.</p>
+        <div class="anim-shell agent-coding" aria-live="polite">
+          <div class="anim-top">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <div class="anim-body">
+            <pre class="anim-output" id="coding-agent-terminal"></pre>
+          </div>
+        </div>
+        <p class="agent-note" id="coding-agent-summary">Summary: waiting for extracted findings...</p>
+      </section>
+
+      <section class="panel">
         <h2>Typical Agent Workflow</h2>
         <div class="grid">
           <article class="card">
@@ -526,86 +562,119 @@ $ grep -R "authentication" /docs
   </div>
   <script>
     (function () {
-      var terminal = document.getElementById("agent-terminal");
-      if (!terminal) return;
+      function runTerminalAnimation(config) {
+        var terminal = document.getElementById(config.terminalId);
+        if (!terminal) return;
 
-      var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        function typeLine(text, speed, done) {
+          var i = 0;
+          function tick() {
+            if (i < text.length) {
+              terminal.textContent = terminal.textContent + text.charAt(i++);
+              setTimeout(tick, speed);
+              return;
+            }
+            terminal.textContent += "\n";
+            done();
+          }
+          tick();
+        }
+
+        function applyFinalState() {
+          if (config.onComplete) config.onComplete();
+        }
+
+        function resetState() {
+          terminal.textContent = "";
+          if (config.onReset) config.onReset();
+        }
+
+        if (reduceMotion) {
+          terminal.textContent = config.steps.map(function (s) { return s.line; }).join("\n");
+          applyFinalState();
+          return;
+        }
+
+        function run(index) {
+          if (index === 0) resetState();
+          if (index >= config.steps.length) {
+            applyFinalState();
+            terminal.textContent += "$ ";
+            var cursor = document.createElement("span");
+            cursor.className = "caret";
+            cursor.textContent = "_";
+            terminal.appendChild(cursor);
+            setTimeout(function () { run(0); }, config.loopDelay || 1800);
+            return;
+          }
+
+          typeLine(config.steps[index].line, config.typeSpeed || 22, function () {
+            setTimeout(function () { run(index + 1); }, config.steps[index].wait);
+          });
+        }
+
+        run(0);
+      }
+
       var facts = {
         auth: document.querySelector('[data-fact="auth"]'),
         endpoints: document.querySelector('[data-fact="endpoints"]'),
         path: document.querySelector('[data-fact="path"]')
       };
 
-      var steps = [
-        { line: "$ ssh localhost -p 2222", wait: 480 },
-        { line: "/docs$ ls", wait: 350 },
-        { line: "AGENTS.md  README.md  docs/  guides/", wait: 450 },
-        { line: "/docs$ cd docs", wait: 320 },
-        { line: "/docs/docs$ grep -n \"Authentication\\|GET /v1/projects\" api.md", wait: 450 },
-        { line: "8:## Authentication", wait: 300 },
-        { line: "15:- `GET /v1/projects`: list projects with owner and status", wait: 520 },
-        { line: "/docs/docs$ cat api.md | head -n 24", wait: 380 },
-        { line: "Use bearer tokens for all API requests.", wait: 350 },
-        { line: "/docs/docs$ # extracted summary ready", wait: 650 }
-      ];
-
-      function setFacts() {
-        if (facts.auth) facts.auth.textContent = "Bearer tokens required";
-        if (facts.endpoints) facts.endpoints.textContent = "GET /v1/projects";
-        if (facts.path) facts.path.textContent = "/docs/docs/api.md";
-      }
-
-      function typeLine(text, speed, done) {
-        var i = 0;
-        var current = "";
-        function tick() {
-          if (i < text.length) {
-            current += text.charAt(i++);
-            terminal.textContent = terminal.textContent + text.charAt(i - 1);
-            setTimeout(tick, speed);
-            return;
-          }
-          terminal.textContent += "\n";
-          done();
-        }
-        tick();
-      }
-
-      if (reduceMotion) {
-        terminal.textContent = steps.map(function (s) { return s.line; }).join("\n");
-        setFacts();
-        return;
-      }
-
-      function run(index) {
-        if (index === 0) {
-          terminal.textContent = "";
+      runTerminalAnimation({
+        terminalId: "agent-terminal",
+        steps: [
+          { line: "$ ssh localhost -p 2222", wait: 480 },
+          { line: "/docs$ ls", wait: 350 },
+          { line: "AGENTS.md  README.md  docs/  guides/", wait: 450 },
+          { line: "/docs$ cd docs", wait: 320 },
+          { line: "/docs/docs$ grep -n \"Authentication\\|GET /v1/projects\" api.md", wait: 450 },
+          { line: "8:## Authentication", wait: 300 },
+          { line: "15:- `GET /v1/projects`: list projects with owner and status", wait: 520 },
+          { line: "/docs/docs$ cat api.md | head -n 24", wait: 380 },
+          { line: "Use bearer tokens for all API requests.", wait: 350 },
+          { line: "/docs/docs$ # extracted summary ready", wait: 650 }
+        ],
+        onReset: function () {
           if (facts.auth) facts.auth.textContent = "Waiting for extraction...";
           if (facts.endpoints) facts.endpoints.textContent = "Waiting for extraction...";
           if (facts.path) facts.path.textContent = "Waiting for extraction...";
+        },
+        onComplete: function () {
+          if (facts.auth) facts.auth.textContent = "Bearer tokens required";
+          if (facts.endpoints) facts.endpoints.textContent = "GET /v1/projects";
+          if (facts.path) facts.path.textContent = "/docs/docs/api.md";
         }
+      });
 
-        if (index >= steps.length) {
-          setFacts();
-          terminal.textContent += "$ ";
-          var cursor = document.createElement("span");
-          cursor.className = "caret";
-          cursor.textContent = "_";
-          terminal.appendChild(cursor);
-          setTimeout(function () {
-            run(0);
-          }, 1800);
-          return;
-        }
-
-        typeLine(steps[index].line, 22, function () {
-          setTimeout(function () {
-            run(index + 1);
-          }, steps[index].wait);
-        });
-      }
-
-      run(0);
+      var summary = document.getElementById("coding-agent-summary");
+      runTerminalAnimation({
+        terminalId: "coding-agent-terminal",
+        steps: [
+          { line: "$ ssh localhost -p 2222 'find /docs -name \"*.md\" | head -n 5'", wait: 520 },
+          { line: "/docs/AGENTS.md", wait: 180 },
+          { line: "/docs/README.md", wait: 180 },
+          { line: "/docs/docs/api.md", wait: 300 },
+          { line: "$ ssh localhost -p 2222 'grep -n \"Authentication\\|/v1/health\" /docs/docs/api.md'", wait: 520 },
+          { line: "8:## Authentication", wait: 240 },
+          { line: "17:- `GET /v1/health`: retrieve service health and dependency checks", wait: 380 },
+          { line: "$ ssh localhost -p 2222 'head -n 22 /docs/docs/api.md'", wait: 440 },
+          { line: "Use bearer tokens for all API requests.", wait: 300 },
+          { line: "$ # claude-code-style extraction complete", wait: 700 }
+        ],
+        onReset: function () {
+          if (summary) summary.textContent = "Summary: waiting for extracted findings...";
+        },
+        onComplete: function () {
+          if (summary) {
+            summary.textContent = "Summary: authentication=bearer token, health endpoint=GET /v1/health, source=/docs/docs/api.md";
+          }
+        },
+        loopDelay: 2100
+      });
     })();
   </script>
 </body>
