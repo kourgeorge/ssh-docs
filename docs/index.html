@@ -332,6 +332,21 @@
 
         <div class="content">
             <section>
+                <h2>Start Here</h2>
+                <p class="section-intro">Run the docs server, then give your agent one command to consume the generated instructions.</p>
+                <div class="two-column">
+                    <div class="card">
+                        <h3>Server one-liner</h3>
+                        <div class="code-block"><pre><code>ssh-docs serve ./docs --auth public</code></pre></div>
+                    </div>
+                    <div class="card">
+                        <h3>Agent one-liner</h3>
+                        <div class="code-block"><pre><code>ssh localhost -p 2222 'cat AGENTS.md' >> AGENTS.md</code></pre></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
                 <h2>Why SSH-Docs?</h2>
                 <p class="section-intro">
                     Built for terminal-first workflows where humans and AI agents both rely on shell-based exploration.
